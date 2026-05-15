@@ -142,7 +142,7 @@ function Login() {
           <p className="text-center text-gray-600 text-sm mt-6">
             ¿No tienes cuenta?{" "}
             <Link
-              to="/registro"
+              to="/register"
               className="text-blue-600 font-semibold hover:text-blue-700"
             >
               Regístrate aquí
