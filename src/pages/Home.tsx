@@ -1,40 +1,12 @@
 import { Link } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
 function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
 
       {/* NAVBAR */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 text-white p-2 rounded-lg">
-              🔧
-            </div>
-
-            <h1 className="text-2xl font-bold text-blue-600">
-              FixYa
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link
-              to="/login"
-              className="text-gray-700 hover:text-blue-600"
-            >
-              Iniciar Sesión
-            </Link>
-
-            <Link
-              to="/register"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Registrarse
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* HERO */}
       <section className="max-w-7xl mx-auto px-6 py-20">
@@ -55,9 +27,12 @@ function Home() {
 
             <div className="mt-8 flex gap-4">
 
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700">
+              <Link
+                to="/register"
+                className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
+              >
                 Solicitar Servicio
-              </button>
+              </Link>
 
               <button className="border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-100">
                 Ver Técnicos
