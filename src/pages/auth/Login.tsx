@@ -34,21 +34,21 @@ function Login() {
     },
   ];
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+const handleLogin = (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (selectedRole === "cliente") {
-      navigate("/");
-    }
+  if (selectedRole === "cliente") {
+    navigate("/cliente/dashboard");
+  }
 
-    if (selectedRole === "tecnico") {
-      navigate("/");
-    }
+  if (selectedRole === "tecnico") {
+    navigate("/tecnico/dashboard");
+  }
 
-    if (selectedRole === "admin") {
-      navigate("/");
-    }
-  };
+  if (selectedRole === "admin") {
+    navigate("/admin/panel");
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-6 py-12">

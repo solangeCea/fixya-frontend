@@ -1,19 +1,60 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Home from "../pages/Home";
-import Login from "../pages/Login";
-import Register from "../pages/Register";
+import Login from "../pages/auth/Login";
+import Register from "../pages/auth/Register";
+
+import TecnicoDashboard from "../pages/tecnico/TecnicoDashboard";
+
+import AdminLayout from "../layouts/AdminLayout";
+
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import TechnicianManagement from "../pages/admin/TechnicianManagement";
+import UserManagement from "../pages/admin/UserManagement";
+import ReviewManagement from "../pages/admin/ReviewManagement";
 
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
 
+        {/* PUBLICAS */}
         <Route path="/" element={<Home />} />
 
         <Route path="/login" element={<Login />} />
 
         <Route path="/register" element={<Register />} />
+
+        {/* TECNICO */}
+        <Route
+          path="/tecnico/dashboard"
+          element={<TecnicoDashboard />}
+        />
+
+        {/* ADMIN */}
+        <Route path="/admin" element={<AdminLayout />}>
+
+          <Route
+            path="panel"
+            element={<AdminDashboard />}
+          />
+
+          <Route
+            path="tecnicos"
+            element={<TechnicianManagement />}
+          />
+
+          <Route
+            path="usuarios"
+            element={<UserManagement />}
+          />
+
+          <Route
+            path="resenas"
+            element={<ReviewManagement />}
+          />
+
+        </Route>
 
       </Routes>
     </BrowserRouter>
