@@ -1,542 +1,410 @@
-import { useState } from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle,
-  X,
-  FileText,
-  Filter,
+  Mail,
+  Phone,
+  Search,
+  ShieldCheck,
+  UserCog,
+  XCircle,
 } from "lucide-react";
 
-import {
-  motion,
-  AnimatePresence,
-} from "framer-motion";
+import { getTechnicians } from "../../services/technicianService";
+import type { Tecnico } from "../../services/technicianService";
 
-interface Technician {
-  id: number;
-  name: string;
-  specialty: string;
-  email: string;
-  phone: string;
-  location: string;
-  status: "pending" | "approved";
-  registrationDate: string;
-  experience: number;
+import { getUsers } from "../../services/userService";
+import type { UsuarioAdmin } from "../../services/userService";
 
-  documents: {
-    cedula: string;
-    certificacion: string;
-    antecedentes: string;
-  };
+type FilterType = "all" | "verified" | "pending";
+
+interface TecnicoAdmin extends Tecnico {
+  nombre_completo: string;
+  correo: string;
+  telefono: string | null;
 }
 
-const technicians: Technician[] = [
-  {
-    id: 1,
-    name: "Luis Fernández",
-    specialty: "Electricidad",
-    email: "luis.fernandez@email.com",
-    phone: "+56 9 8765 4321",
-    location: "Vitacura",
-    status: "pending",
-    registrationDate: "12 Abr 2026",
-    experience: 8,
-
-    documents: {
-      cedula:
-        "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=600&fit=crop",
-
-      certificacion:
-        "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop",
-
-      antecedentes:
-        "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=800&h=600&fit=crop",
-    },
-  },
-
-  {
-    id: 2,
-    name: "Javier Muñoz",
-    specialty: "Pintura",
-    email: "javier.munoz@email.com",
-    phone: "+56 9 7654 3210",
-    location: "La Reina",
-    status: "pending",
-    registrationDate: "11 Abr 2026",
-    experience: 5,
-
-    documents: {
-      cedula:
-        "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=600&fit=crop",
-
-      certificacion:
-        "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop",
-
-      antecedentes:
-        "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=800&h=600&fit=crop",
-    },
-  },
-
-  {
-    id: 3,
-    name: "Carlos Mendoza",
-    specialty: "Gasfitería",
-    email: "carlos.mendoza@email.com",
-    phone: "+56 9 6543 2109",
-    location: "Santiago Centro",
-    status: "approved",
-    registrationDate: "5 Abr 2026",
-    experience: 10,
-
-    documents: {
-      cedula:
-        "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=600&fit=crop",
-
-      certificacion:
-        "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop",
-
-      antecedentes:
-        "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=800&h=600&fit=crop",
-    },
-  },
-
-  {
-    id: 4,
-    name: "Roberto Silva",
-    specialty: "Electricidad",
-    email: "roberto.silva@email.com",
-    phone: "+56 9 5432 1098",
-    location: "Providencia",
-    status: "approved",
-    registrationDate: "1 Abr 2026",
-    experience: 12,
-
-    documents: {
-      cedula:
-        "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=600&fit=crop",
-
-      certificacion:
-        "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop",
-
-      antecedentes:
-        "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=800&h=600&fit=crop",
-    },
-  },
-];
-
 export default function TechnicianManagement() {
-  const [filter, setFilter] = useState<
-    "all" | "pending" | "approved"
-  >("all");
-
+  const [technicians, setTechnicians] = useState<TecnicoAdmin[]>([]);
+  const [filter, setFilter] = useState<FilterType>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedTechnician, setSelectedTechnician] =
-    useState<Technician | null>(null);
+    useState<TecnicoAdmin | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [showDocumentsModal, setShowDocumentsModal] =
-    useState(false);
+  useEffect(() => {
+    async function cargarTecnicos() {
+      try {
+        setLoading(true);
+        setError("");
 
-  const filteredTechnicians = technicians.filter(
-    (tech) => {
-      if (filter === "all") return true;
+        const [tecnicosData, usuariosData] = await Promise.all([
+          getTechnicians(),
+          getUsers(),
+        ]);
 
-      return tech.status === filter;
+        const tecnicosCompletos: TecnicoAdmin[] = tecnicosData.map(
+          (tecnico) => {
+            const usuario = usuariosData.find(
+              (user: UsuarioAdmin) => user.rut === tecnico.usuario_rut
+            );
+
+            return {
+              ...tecnico,
+              nombre_completo:
+                usuario?.nombre_completo || "Técnico sin usuario",
+              correo: usuario?.correo || "Sin correo",
+              telefono: usuario?.telefono || "Sin teléfono",
+            };
+          }
+        );
+
+        setTechnicians(tecnicosCompletos);
+      } catch {
+        setError("No se pudieron cargar los técnicos del sistema.");
+      } finally {
+        setLoading(false);
+      }
     }
-  );
 
-  const handleViewDocuments = (tech: Technician) => {
-    setSelectedTechnician(tech);
-    setShowDocumentsModal(true);
-  };
+    cargarTecnicos();
+  }, []);
+
+  const filteredTechnicians = useMemo(() => {
+    return technicians.filter((tech) => {
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "verified" && tech.tecnico_verificado) ||
+        (filter === "pending" && !tech.tecnico_verificado);
+
+      const search = searchTerm.toLowerCase();
+
+      const matchesSearch =
+        tech.nombre_completo.toLowerCase().includes(search) ||
+        tech.correo.toLowerCase().includes(search) ||
+        tech.usuario_rut.toLowerCase().includes(search) ||
+        tech.nivel_tecnico.toLowerCase().includes(search);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [technicians, filter, searchTerm]);
+
+  const totalVerificados = technicians.filter(
+    (tech) => tech.tecnico_verificado
+  ).length;
+
+  const totalPendientes = technicians.filter(
+    (tech) => !tech.tecnico_verificado
+  ).length;
 
   return (
-    <div className="space-y-6">
-
-      {/* FILTERS */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-
-        <div className="flex items-center gap-2 mb-4">
-
-          <Filter
-            size={20}
-            className="text-gray-700"
-          />
-
-          <h2 className="font-semibold text-gray-900">
-            Filtros
-          </h2>
-
-        </div>
-
-        <div className="flex gap-3 flex-wrap">
-
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === "all"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Todos ({technicians.length})
-          </button>
-
-          <button
-            onClick={() => setFilter("pending")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === "pending"
-                ? "bg-yellow-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Pendientes (
-            {
-              technicians.filter(
-                (t) => t.status === "pending"
-              ).length
-            }
-            )
-          </button>
-
-          <button
-            onClick={() => setFilter("approved")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === "approved"
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Aprobados (
-            {
-              technicians.filter(
-                (t) => t.status === "approved"
-              ).length
-            }
-            )
-          </button>
-
-        </div>
-
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Gestión de Técnicos
+        </h1>
+        <p className="mt-2 text-gray-600">
+          Administración de técnicos registrados en FixYa.
+        </p>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Total técnicos
+          </p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">
+            {technicians.length}
+          </p>
+        </div>
 
-        <div className="overflow-x-auto">
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Verificados
+          </p>
+          <p className="mt-2 text-3xl font-bold text-green-700">
+            {totalVerificados}
+          </p>
+        </div>
 
-          <table className="w-full">
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Pendientes
+          </p>
+          <p className="mt-2 text-3xl font-bold text-yellow-700">
+            {totalPendientes}
+          </p>
+        </div>
+      </div>
 
-            <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por nombre, correo, RUT o nivel"
+              className="w-full rounded-xl border border-gray-300 py-3 pl-12 pr-4 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
 
-              <tr>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilter("all")}
+              className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                filter === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Todos
+            </button>
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Técnico
-                </th>
+            <button
+              onClick={() => setFilter("verified")}
+              className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                filter === "verified"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Verificados
+            </button>
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Especialidad
-                </th>
+            <button
+              onClick={() => setFilter("pending")}
+              className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                filter === "pending"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Pendientes
+            </button>
+          </div>
+        </div>
+      </div>
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Contacto
-                </th>
+      {loading && (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <p className="font-medium text-gray-600">
+            Cargando técnicos...
+          </p>
+        </div>
+      )}
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Experiencia
-                </th>
+      {error && !loading && (
+        <div className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+          <AlertCircle className="h-5 w-5" />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Estado
-                </th>
+      {!loading && !error && (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">
+                    Técnico
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">
+                    Contacto
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">
+                    Perfil
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">
+                    Experiencia
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">
+                    Estado
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-700">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Acciones
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody className="divide-y divide-gray-200">
-
-              {filteredTechnicians.map(
-                (tech, index) => (
-                  <motion.tr
-                    key={tech.id}
-                    initial={{
-                      opacity: 0,
-                      y: 20,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                    }}
-                    transition={{
-                      delay: index * 0.05,
-                    }}
+              <tbody className="divide-y divide-gray-100">
+                {filteredTechnicians.map((tech) => (
+                  <tr
+                    key={tech.usuario_rut}
                     className="hover:bg-gray-50"
                   >
-
                     <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100">
+                          <UserCog className="h-5 w-5 text-blue-700" />
+                        </div>
 
-                      <div>
-
-                        <p className="font-semibold text-gray-900">
-                          {tech.name}
-                        </p>
-
-                        <p className="text-sm text-gray-500">
-                          {tech.location}
-                        </p>
-
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {tech.nombre_completo}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            RUT: {tech.usuario_rut}
+                          </p>
+                        </div>
                       </div>
-
                     </td>
 
                     <td className="px-6 py-4">
-                      <span className="text-gray-900">
-                        {tech.specialty}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4">
-
-                      <div className="text-sm">
-
-                        <p className="text-gray-900">
-                          {tech.email}
+                      <div className="space-y-1">
+                        <p className="flex items-center gap-2 text-sm text-gray-700">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          {tech.correo}
                         </p>
 
-                        <p className="text-gray-500">
-                          {tech.phone}
+                        <p className="flex items-center gap-2 text-sm text-gray-700">
+                          <Phone className="h-4 w-4 text-gray-400" />
+                          {tech.telefono}
                         </p>
-
                       </div>
-
                     </td>
 
                     <td className="px-6 py-4">
-
-                      <span className="text-gray-900">
-                        {tech.experience} años
-                      </span>
-
+                      <p className="font-medium text-gray-900">
+                        {tech.nivel_tecnico}
+                      </p>
+                      <p className="mt-1 max-w-xs text-sm text-gray-500">
+                        {tech.descripcion_perfil}
+                      </p>
                     </td>
 
                     <td className="px-6 py-4">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {tech.experiencia_anios} años
+                      </p>
+                    </td>
 
-                      {tech.status === "pending" ? (
-                        <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-sm font-medium">
-                          Pendiente
+                    <td className="px-6 py-4">
+                      {tech.tecnico_verificado ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                          <CheckCircle className="h-4 w-4" />
+                          Verificado
                         </span>
                       ) : (
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-medium">
-                          Aprobado
+                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700">
+                          <XCircle className="h-4 w-4" />
+                          Pendiente
                         </span>
                       )}
-
                     </td>
 
                     <td className="px-6 py-4">
-
-                      <div className="flex gap-2">
-
-                        {tech.status ===
-                          "pending" && (
-                          <>
-                            <button className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-
-                              <CheckCircle
-                                size={18}
-                              />
-
-                            </button>
-
-                            <button className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-
-                              <X size={18} />
-
-                            </button>
-                          </>
-                        )}
-
-                        <button
-                          onClick={() =>
-                            handleViewDocuments(
-                              tech
-                            )
-                          }
-                          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1"
-                        >
-
-                          <FileText size={16} />
-
-                          Ver Docs
-
-                        </button>
-
-                      </div>
-
+                      <button
+                        onClick={() => setSelectedTechnician(tech)}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      >
+                        Ver perfil
+                      </button>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-                  </motion.tr>
-                )
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-      {/* MODAL */}
-      <AnimatePresence>
-
-        {showDocumentsModal &&
-          selectedTechnician && (
-            <div
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() =>
-                setShowDocumentsModal(false)
-              }
-            >
-
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  scale: 0.9,
-                }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                }}
-                exit={{
-                  opacity: 0,
-                  scale: 0.9,
-                }}
-                onClick={(e) =>
-                  e.stopPropagation()
-                }
-                className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-              >
-
-                <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-
-                  <div>
-
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      {selectedTechnician.name}
-                    </h2>
-
-                    <p className="text-gray-600">
-                      {
-                        selectedTechnician.specialty
-                      }{" "}
-                      -{" "}
-                      {
-                        selectedTechnician.location
-                      }
-                    </p>
-
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      setShowDocumentsModal(
-                        false
-                      )
-                    }
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-
-                    <X size={24} />
-
-                  </button>
-
-                </div>
-
-                <div className="p-6 space-y-6">
-
-                  <div>
-
-                    <h3 className="font-bold text-gray-900 mb-3">
-                      Información del Técnico
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4">
-
-                      <div>
-
-                        <p className="text-sm text-gray-600">
-                          Email
-                        </p>
-
-                        <p className="font-medium text-gray-900">
-                          {
-                            selectedTechnician.email
-                          }
-                        </p>
-
-                      </div>
-
-                      <div>
-
-                        <p className="text-sm text-gray-600">
-                          Teléfono
-                        </p>
-
-                        <p className="font-medium text-gray-900">
-                          {
-                            selectedTechnician.phone
-                          }
-                        </p>
-
-                      </div>
-
-                      <div>
-
-                        <p className="text-sm text-gray-600">
-                          Ubicación
-                        </p>
-
-                        <p className="font-medium text-gray-900">
-                          {
-                            selectedTechnician.location
-                          }
-                        </p>
-
-                      </div>
-
-                      <div>
-
-                        <p className="text-sm text-gray-600">
-                          Experiencia
-                        </p>
-
-                        <p className="font-medium text-gray-900">
-                          {
-                            selectedTechnician.experience
-                          }{" "}
-                          años
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </motion.div>
-
+          {filteredTechnicians.length === 0 && (
+            <div className="p-8 text-center text-gray-500">
+              No se encontraron técnicos.
             </div>
           )}
+        </div>
+      )}
 
-      </AnimatePresence>
+      {selectedTechnician && (
+        <div
+          onClick={() => setSelectedTechnician(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {selectedTechnician.nombre_completo}
+                </h2>
+                <p className="mt-1 text-gray-600">
+                  {selectedTechnician.descripcion_perfil}
+                </p>
+              </div>
 
+              <button
+                onClick={() => setSelectedTechnician(null)}
+                className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-500">
+                  RUT
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTechnician.usuario_rut}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-500">
+                  Correo
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTechnician.correo}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-500">
+                  Teléfono
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTechnician.telefono}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-500">
+                  Nivel técnico
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTechnician.nivel_tecnico}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-500">
+                  Experiencia
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTechnician.experiencia_anios} años
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-500">
+                  Estado
+                </p>
+                <p className="mt-1 inline-flex items-center gap-2 font-semibold text-gray-900">
+                  <ShieldCheck className="h-5 w-5 text-green-600" />
+                  {selectedTechnician.tecnico_verificado
+                    ? "Verificado"
+                    : "Pendiente"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

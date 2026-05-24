@@ -12,6 +12,8 @@ import TechnicianManagement from "../pages/admin/TechnicianManagement";
 import UserManagement from "../pages/admin/UserManagement";
 import ReviewManagement from "../pages/admin/ReviewManagement";
 
+import ClienteDashboard from "../pages/cliente/ClienteDashboard";
+
 import ProtectedRoute from "./ProtectedRoute";
 
 function AppRoutes() {
@@ -32,6 +34,16 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        
+        {/* RUTA CLIENTE */}
+<Route
+  path="/cliente/dashboard"
+  element={
+    <ProtectedRoute allowedRoles={["CLIENTE"]}>
+      <ClienteDashboard />
+    </ProtectedRoute>
+  }
+/>       
 
         {/* RUTAS ADMIN */}
         <Route
