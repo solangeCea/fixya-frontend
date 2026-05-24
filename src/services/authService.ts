@@ -24,3 +24,22 @@ export async function login(
 
   return response.json();
 }
+
+export async function obtenerUsuarioActual(
+  token: string
+) {
+  const response = await fetch(
+    `${API_URL}/usuarios/me`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("No se pudo obtener usuario");
+  }
+
+  return response.json();
+}
