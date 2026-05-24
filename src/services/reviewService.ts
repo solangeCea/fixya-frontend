@@ -1,6 +1,6 @@
 import API_URL from "./api";
 
-const token = localStorage.getItem("token");
+
 
 export async function getReportedReviews() {
   const response = await fetch(

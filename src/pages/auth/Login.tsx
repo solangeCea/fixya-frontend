@@ -3,12 +3,27 @@ import { useNavigate, Link } from "react-router-dom";
 import { Wrench, User, Shield, Briefcase } from "lucide-react";
 import { motion } from "framer-motion";
 
+import {
+  login,
+  obtenerUsuarioActual,
+} from "../../services/authService";
+
+import { saveToken } from "../../services/token";
+
+import { useAuth } from "../../context/AuthContext";
+
 function Login() {
+  const navigate = useNavigate();
+
+  const { setUsuario } = useAuth();
+
   const [selectedRole, setSelectedRole] = useState<
     "cliente" | "tecnico" | "admin" | null
   >(null);
 
-  const navigate = useNavigate();
+  const [correo, setCorreo] = useState("");
+  const [contrasena, setContrasena] = useState("");
+  const [error, setError] = useState("");
 
   const roles = [
     {
@@ -34,21 +49,47 @@ function Login() {
     },
   ];
 
-const handleLogin = (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleLogin = async (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault();
 
-  if (selectedRole === "cliente") {
-    navigate("/cliente/dashboard");
-  }
+    setError("");
 
-  if (selectedRole === "tecnico") {
-    navigate("/tecnico/dashboard");
-  }
+    try {
+      const response = await login(
+        correo,
+        contrasena
+      );
 
-  if (selectedRole === "admin") {
-    navigate("/admin/panel");
-  }
-};
+      saveToken(response.access_token);
+
+      const usuario =
+        await obtenerUsuarioActual(
+          response.access_token
+        );
+
+      setUsuario(usuario);
+
+      if (usuario.tipo_usuario === "CLIENTE") {
+        navigate("/cliente/dashboard");
+        return;
+      }
+
+      if (usuario.tipo_usuario === "TECNICO") {
+        navigate("/tecnico/dashboard");
+        return;
+      }
+
+      if (usuario.tipo_usuario === "ADMIN") {
+        navigate("/admin/panel");
+        return;
+      }
+    } catch (error) {
+      setError("Correo o contraseña incorrectos");
+      console.error(error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-6 py-12">
@@ -59,7 +100,10 @@ const handleLogin = (e: React.FormEvent) => {
       >
         <div className="text-center mb-8">
           <div className="bg-blue-600 p-3 rounded-xl inline-block mb-4">
-            <Wrench className="text-white" size={32} />
+            <Wrench
+              className="text-white"
+              size={32}
+            />
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -79,7 +123,9 @@ const handleLogin = (e: React.FormEvent) => {
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedRole(role.type)}
+                onClick={() =>
+                  setSelectedRole(role.type)
+                }
                 className={`p-6 rounded-2xl border-2 transition-all ${
                   selectedRole === role.type
                     ? "border-blue-600 bg-blue-50"
@@ -87,7 +133,7 @@ const handleLogin = (e: React.FormEvent) => {
                 }`}
               >
                 <div
-                  className={`${role.color} w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 transition-colors`}
+                  className={`${role.color} w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4`}
                 >
                   <role.icon size={32} />
                 </div>
@@ -111,6 +157,10 @@ const handleLogin = (e: React.FormEvent) => {
 
               <input
                 type="email"
+                value={correo}
+                onChange={(e) =>
+                  setCorreo(e.target.value)
+                }
                 required
                 placeholder="tu@email.com"
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -124,12 +174,22 @@ const handleLogin = (e: React.FormEvent) => {
 
               <input
                 type="password"
+                value={contrasena}
+                onChange={(e) =>
+                  setContrasena(e.target.value)
+                }
                 required
                 placeholder="••••••••"
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
             </div>
           </div>
+
+          {error && (
+            <div className="mt-4 text-center text-red-600 font-medium">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
