@@ -7,55 +7,46 @@ import Register from "../pages/auth/Register";
 import TecnicoDashboard from "../pages/tecnico/TecnicoDashboard";
 
 import AdminLayout from "../layouts/AdminLayout";
-
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import TechnicianManagement from "../pages/admin/TechnicianManagement";
 import UserManagement from "../pages/admin/UserManagement";
 import ReviewManagement from "../pages/admin/ReviewManagement";
 
+import ProtectedRoute from "./ProtectedRoute";
+
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* PUBLICAS */}
+        {/* RUTAS PÚBLICAS */}
         <Route path="/" element={<Home />} />
-
         <Route path="/login" element={<Login />} />
-
         <Route path="/register" element={<Register />} />
 
-        {/* TECNICO */}
+        {/* RUTA TÉCNICO */}
         <Route
           path="/tecnico/dashboard"
-          element={<TecnicoDashboard />}
+          element={
+            <ProtectedRoute allowedRoles={["TECNICO"]}>
+              <TecnicoDashboard />
+            </ProtectedRoute>
+          }
         />
 
-        {/* ADMIN */}
-        <Route path="/admin" element={<AdminLayout />}>
-
-          <Route
-            path="panel"
-            element={<AdminDashboard />}
-          />
-
-          <Route
-            path="tecnicos"
-            element={<TechnicianManagement />}
-          />
-
-          <Route
-            path="usuarios"
-            element={<UserManagement />}
-          />
-
-          <Route
-            path="resenas"
-            element={<ReviewManagement />}
-          />
-
+        {/* RUTAS ADMIN */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="panel" element={<AdminDashboard />} />
+          <Route path="tecnicos" element={<TechnicianManagement />} />
+          <Route path="usuarios" element={<UserManagement />} />
+          <Route path="resenas" element={<ReviewManagement />} />
         </Route>
-
       </Routes>
     </BrowserRouter>
   );
