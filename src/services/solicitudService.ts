@@ -73,3 +73,69 @@ export async function getSolicitudesCliente(
 
   return response.json();
 }
+
+export async function getSolicitudes(): Promise<Solicitud[]> {
+  const response = await fetch(`${API_URL}/solicitudes/`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener solicitudes");
+  }
+
+  return response.json();
+}
+
+export async function getSolicitudesTecnico(
+  rut: string
+): Promise<Solicitud[]> {
+  const response = await fetch(`${API_URL}/solicitudes/tecnico/${rut}`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener solicitudes del técnico");
+  }
+
+  return response.json();
+}
+
+export async function iniciarSolicitud(idSolicitud: number) {
+  const response = await fetch(
+    `${API_URL}/solicitudes/${idSolicitud}/iniciar`,
+    {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Error al iniciar solicitud");
+  }
+
+  return response.json();
+}
+
+export async function finalizarSolicitud(
+  idSolicitud: number,
+  costoFinal: number
+) {
+  const response = await fetch(
+    `${API_URL}/solicitudes/${idSolicitud}/finalizar`,
+    {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        costo_final: costoFinal,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Error al finalizar solicitud");
+  }
+
+  return response.json();
+}
