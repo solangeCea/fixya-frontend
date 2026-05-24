@@ -1,30 +1,105 @@
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wrench, User, Briefcase, Upload } from "lucide-react";
+import { Wrench, User, Briefcase, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { createUser } from "../../services/userService";
+import type { UsuarioCreate } from "../../services/userService";
+
+type UserType = "cliente" | "tecnico";
+
+interface RegisterForm {
+  nombre_completo: string;
+  rut: string;
+  fecha_nacimiento: string;
+  genero: string;
+  correo: string;
+  telefono: string;
+  contrasena: string;
+  confirmarContrasena: string;
+  comuna_id_comuna: number;
+}
+
+const initialForm: RegisterForm = {
+  nombre_completo: "",
+  rut: "",
+  fecha_nacimiento: "",
+  genero: "Femenino",
+  correo: "",
+  telefono: "",
+  contrasena: "",
+  confirmarContrasena: "",
+  comuna_id_comuna: 11,
+};
+
 function Register() {
-  const [userType, setUserType] = useState<"cliente" | "tecnico">("cliente");
+  const [userType, setUserType] = useState<UserType>("cliente");
+  const [form, setForm] = useState<RegisterForm>(initialForm);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  function handleChange(
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) {
+    const { name, value } = event.target;
 
-    alert("Cuenta creada correctamente");
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "comuna_id_comuna" ? Number(value) : value,
+    }));
+  }
 
-    navigate("/login");
-  };
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (form.contrasena !== form.confirmarContrasena) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const payload: UsuarioCreate = {
+        rut: form.rut,
+        nombre_completo: form.nombre_completo,
+        fecha_nacimiento: form.fecha_nacimiento,
+        genero: form.genero,
+        correo: form.correo,
+        telefono: form.telefono,
+        contrasena: form.contrasena,
+        comuna_id_comuna: form.comuna_id_comuna,
+        tipo_usuario: userType === "cliente" ? "CLIENTE" : "TECNICO",
+      };
+
+      await createUser(payload);
+
+      alert("Cuenta creada correctamente");
+      navigate("/login");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo registrar el usuario."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 py-6">
+      <div className="border-b border-gray-200 bg-white py-6">
         <div className="mx-auto max-w-4xl px-6">
           <Link
             to="/"
             className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
           >
-            <div className="bg-blue-600 p-2 rounded-lg">
+            <div className="rounded-lg bg-blue-600 p-2">
               <Wrench className="text-white" size={20} />
             </div>
 
@@ -37,10 +112,10 @@ function Register() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm p-8"
+          className="rounded-2xl bg-white p-8 shadow-sm"
         >
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <div className="mb-8 text-center">
+            <h1 className="mb-2 text-3xl font-bold text-gray-900">
               Crear Cuenta
             </h1>
 
@@ -49,22 +124,22 @@ function Register() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="mb-8 grid grid-cols-2 gap-4">
             <button
               type="button"
               onClick={() => setUserType("cliente")}
-              className={`p-4 rounded-xl border-2 transition-all ${
+              className={`rounded-xl border-2 p-4 transition-all ${
                 userType === "cliente"
                   ? "border-blue-600 bg-blue-50"
                   : "border-gray-200 hover:border-gray-300"
               }`}
             >
               <div
-                className={`${
+                className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg ${
                   userType === "cliente"
                     ? "bg-blue-100 text-blue-600"
                     : "bg-gray-100 text-gray-600"
-                } w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3`}
+                }`}
               >
                 <User size={24} />
               </div>
@@ -73,7 +148,7 @@ function Register() {
                 Soy Cliente
               </h3>
 
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="mt-1 text-sm text-gray-600">
                 Busco contratar técnicos
               </p>
             </button>
@@ -81,18 +156,18 @@ function Register() {
             <button
               type="button"
               onClick={() => setUserType("tecnico")}
-              className={`p-4 rounded-xl border-2 transition-all ${
+              className={`rounded-xl border-2 p-4 transition-all ${
                 userType === "tecnico"
                   ? "border-blue-600 bg-blue-50"
                   : "border-gray-200 hover:border-gray-300"
               }`}
             >
               <div
-                className={`${
+                className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg ${
                   userType === "tecnico"
                     ? "bg-green-100 text-green-600"
                     : "bg-gray-100 text-gray-600"
-                } w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3`}
+                }`}
               >
                 <Briefcase size={24} />
               </div>
@@ -101,144 +176,197 @@ function Register() {
                 Soy Técnico
               </h3>
 
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="mt-1 text-sm text-gray-600">
                 Ofrezco mis servicios
               </p>
             </button>
           </div>
 
+          {error && (
+            <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <AlertCircle size={18} />
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label className="block font-medium text-gray-700 mb-2">
+                <label className="mb-2 block font-medium text-gray-700">
                   Nombre completo
                 </label>
 
                 <input
+                  name="nombre_completo"
+                  value={form.nombre_completo}
+                  onChange={handleChange}
                   type="text"
                   required
                   placeholder="Juan Pérez"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-gray-700 mb-2">
+                <label className="mb-2 block font-medium text-gray-700">
                   RUT
                 </label>
 
                 <input
+                  name="rut"
+                  value={form.rut}
+                  onChange={handleChange}
                   type="text"
                   required
-                  placeholder="12.345.678-9"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="12345678-9"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block font-medium text-gray-700">
+                  Fecha de nacimiento
+                </label>
+
+                <input
+                  name="fecha_nacimiento"
+                  value={form.fecha_nacimiento}
+                  onChange={handleChange}
+                  type="date"
+                  required
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block font-medium text-gray-700">
+                  Género
+                </label>
+
+                <select
+                  name="genero"
+                  value={form.genero}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="Femenino">Femenino</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+            </div>
+
             <div>
-              <label className="block font-medium text-gray-700 mb-2">
+              <label className="mb-2 block font-medium text-gray-700">
                 Correo electrónico
               </label>
 
               <input
+                name="correo"
+                value={form.correo}
+                onChange={handleChange}
                 type="email"
                 required
                 placeholder="correo@gmail.com"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-gray-700 mb-2">
+              <label className="mb-2 block font-medium text-gray-700">
                 Teléfono
               </label>
 
               <input
+                name="telefono"
+                value={form.telefono}
+                onChange={handleChange}
                 type="tel"
                 required
-                placeholder="+56 9 1234 5678"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="912345678"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
             </div>
 
+            <div>
+              <label className="mb-2 block font-medium text-gray-700">
+                Comuna
+              </label>
+
+              <select
+                name="comuna_id_comuna"
+                value={form.comuna_id_comuna}
+                onChange={handleChange}
+                required
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              >
+                <option value={11}>Concepción</option>
+                <option value={12}>Talcahuano</option>
+                <option value={13}>San Pedro de la Paz</option>
+              </select>
+            </div>
+
             {userType === "tecnico" && (
-              <>
-                <div>
-                  <label className="block font-medium text-gray-700 mb-2">
-                    Especialidad
-                  </label>
-
-                  <select
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  >
-                    <option>Gasfitería</option>
-                    <option>Electricidad</option>
-                    <option>Computación</option>
-                    <option>Cerrajería</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-gray-700 mb-2">
-                    Documento
-                  </label>
-
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6">
-                    <div className="flex items-center gap-3">
-                      <Upload className="text-gray-400" size={20} />
-
-                      <p className="text-gray-600">
-                        Subir documento PDF o imagen
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </>
+              <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                El registro como técnico crea el usuario con rol TÉCNICO.
+                El perfil técnico detallado se completará desde el módulo de técnicos.
+              </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label className="block font-medium text-gray-700 mb-2">
+                <label className="mb-2 block font-medium text-gray-700">
                   Contraseña
                 </label>
 
                 <input
+                  name="contrasena"
+                  value={form.contrasena}
+                  onChange={handleChange}
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-gray-700 mb-2">
+                <label className="mb-2 block font-medium text-gray-700">
                   Confirmar contraseña
                 </label>
 
                 <input
+                  name="confirmarContrasena"
+                  value={form.confirmarContrasena}
+                  onChange={handleChange}
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+              disabled={loading}
+              className="w-full rounded-xl bg-blue-600 py-4 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
-              {userType === "tecnico"
-                ? "Enviar Solicitud"
-                : "Crear Cuenta"}
+              {loading
+                ? "Creando cuenta..."
+                : userType === "tecnico"
+                ? "Crear cuenta técnico"
+                : "Crear cuenta cliente"}
             </button>
 
-            <p className="text-center text-gray-600 text-sm">
+            <p className="text-center text-sm text-gray-600">
               ¿Ya tienes cuenta?{" "}
               <Link
                 to="/login"
-                className="text-blue-600 font-semibold hover:text-blue-700"
+                className="font-semibold text-blue-600 hover:text-blue-700"
               >
                 Inicia sesión
               </Link>
