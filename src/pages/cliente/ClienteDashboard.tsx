@@ -5,6 +5,7 @@ import {
   MapPin,
   PlusCircle,
   Send,
+  Star,
   Wrench,
 } from "lucide-react";
 
@@ -19,6 +20,8 @@ import type {
   Solicitud,
   SolicitudCreate,
 } from "../../services/solicitudService";
+
+import { createReview } from "../../services/reviewService";
 
 const servicios = [
   { id: 1, nombre: "Electricidad" },
@@ -50,10 +53,17 @@ function ClienteDashboard() {
 
   const [form, setForm] = useState(initialForm);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
   const [creandoSolicitud, setCreandoSolicitud] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [sendingReview, setSendingReview] = useState(false);
 
   async function cargarSolicitudes() {
     if (!usuario?.rut) {
@@ -63,6 +73,8 @@ function ClienteDashboard() {
 
     try {
       setLoadingSolicitudes(true);
+      setError("");
+
       const data = await getSolicitudesCliente(usuario.rut);
       setSolicitudes(data);
     } catch {
@@ -87,8 +99,7 @@ function ClienteDashboard() {
     setForm((prev) => ({
       ...prev,
       [name]:
-        name === "servicio_id_servicio" ||
-        name === "comuna_id_comuna"
+        name === "servicio_id_servicio" || name === "comuna_id_comuna"
           ? Number(value)
           : value,
     }));
@@ -125,11 +136,46 @@ function ClienteDashboard() {
 
       setSuccess("Solicitud creada correctamente.");
       setForm(initialForm);
+
       await cargarSolicitudes();
     } catch {
       setError("No se pudo crear la solicitud.");
     } finally {
       setCreandoSolicitud(false);
+    }
+  }
+
+  async function handleCreateReview(idSolicitud: number) {
+    if (!reviewComment.trim()) {
+      setError("Debes escribir un comentario para la reseña.");
+      return;
+    }
+
+    try {
+      setSendingReview(true);
+      setError("");
+      setSuccess("");
+
+      await createReview({
+        id_solicitud: idSolicitud,
+        calificacion: reviewRating,
+        comentario: reviewComment,
+      });
+
+      setSuccess("Reseña creada correctamente.");
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewingId(null);
+
+      await cargarSolicitudes();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la reseña."
+      );
+    } finally {
+      setSendingReview(false);
     }
   }
 
@@ -142,6 +188,7 @@ function ClienteDashboard() {
           <h1 className="text-4xl font-bold text-gray-900">
             Panel del Cliente
           </h1>
+
           <p className="mt-2 text-gray-600">
             Crea solicitudes técnicas y revisa el estado de tus servicios.
           </p>
@@ -158,6 +205,7 @@ function ClienteDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Solicitar Servicio
                 </h2>
+
                 <p className="text-sm text-gray-500">
                   Registra un problema para buscar ayuda técnica.
                 </p>
@@ -182,6 +230,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   Título
                 </label>
+
                 <input
                   name="titulo_solicitud"
                   value={form.titulo_solicitud}
@@ -196,6 +245,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   Servicio
                 </label>
+
                 <select
                   name="servicio_id_servicio"
                   value={form.servicio_id_servicio}
@@ -214,6 +264,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   Tipo de problema
                 </label>
+
                 <input
                   name="tipo_problema"
                   value={form.tipo_problema}
@@ -228,6 +279,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   Descripción
                 </label>
+
                 <textarea
                   name="descripcion_problema"
                   value={form.descripcion_problema}
@@ -244,6 +296,7 @@ function ClienteDashboard() {
                   <label className="mb-1 block text-sm font-semibold text-gray-700">
                     Urgencia
                   </label>
+
                   <select
                     name="urgencia"
                     value={form.urgencia}
@@ -260,6 +313,7 @@ function ClienteDashboard() {
                   <label className="mb-1 block text-sm font-semibold text-gray-700">
                     Comuna
                   </label>
+
                   <select
                     name="comuna_id_comuna"
                     value={form.comuna_id_comuna}
@@ -279,6 +333,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   Dirección
                 </label>
+
                 <input
                   name="direccion"
                   value={form.direccion}
@@ -293,6 +348,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   Referencia de ubicación
                 </label>
+
                 <input
                   name="ubicacion_problema_referencia"
                   value={form.ubicacion_problema_referencia}
@@ -308,6 +364,7 @@ function ClienteDashboard() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">
                   URL de foto opcional
                 </label>
+
                 <input
                   name="foto_problema"
                   value={form.foto_problema}
@@ -323,6 +380,7 @@ function ClienteDashboard() {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
                 <Send className="h-5 w-5" />
+
                 {creandoSolicitud ? "Creando solicitud..." : "Crear solicitud"}
               </button>
             </form>
@@ -338,6 +396,7 @@ function ClienteDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Mis Solicitudes
                 </h2>
+
                 <p className="text-sm text-gray-500">
                   Historial de solicitudes creadas por tu cuenta.
                 </p>
@@ -364,6 +423,7 @@ function ClienteDashboard() {
                         <h3 className="text-lg font-bold text-gray-900">
                           {solicitud.titulo_solicitud}
                         </h3>
+
                         <p className="mt-1 text-sm text-gray-600">
                           {solicitud.descripcion_problema}
                         </p>
@@ -394,6 +454,83 @@ function ClienteDashboard() {
                         {solicitud.ubicacion_problema_referencia}
                       </p>
                     </div>
+
+                    {solicitud.estado_trabajo === "FINALIZADO" && (
+                      <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                          <div>
+                            <h4 className="font-bold text-gray-900">
+                              Califica el servicio
+                            </h4>
+
+                            <p className="text-sm text-gray-600">
+                              Comparte tu experiencia con el técnico.
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              setReviewingId(
+                                reviewingId === solicitud.id_solicitud
+                                  ? null
+                                  : solicitud.id_solicitud
+                              )
+                            }
+                            className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600"
+                          >
+                            {reviewingId === solicitud.id_solicitud
+                              ? "Cerrar"
+                              : "⭐ Dejar reseña"}
+                          </button>
+                        </div>
+
+                        {reviewingId === solicitud.id_solicitud && (
+                          <div className="space-y-4">
+                            <div className="flex gap-2">
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setReviewRating(value)}
+                                >
+                                  <Star
+                                    className={`h-7 w-7 ${
+                                      value <= reviewRating
+                                        ? "fill-yellow-500 text-yellow-500"
+                                        : "text-gray-300"
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+
+                            <textarea
+                              value={reviewComment}
+                              onChange={(event) =>
+                                setReviewComment(event.target.value)
+                              }
+                              rows={4}
+                              placeholder="Describe cómo fue el servicio recibido"
+                              className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                            />
+
+                            <button
+                              onClick={() =>
+                                handleCreateReview(solicitud.id_solicitud)
+                              }
+                              disabled={sendingReview}
+                              className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
+                            >
+                              <Send className="h-4 w-4" />
+
+                              {sendingReview
+                                ? "Enviando reseña..."
+                                : "Publicar reseña"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
