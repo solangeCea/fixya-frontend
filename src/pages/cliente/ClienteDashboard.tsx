@@ -5,6 +5,7 @@ import {
   MapPin,
   PlusCircle,
   Send,
+  Star,
   Wrench,
 } from "lucide-react";
 
@@ -20,6 +21,8 @@ import type {
   SolicitudCreate,
 } from "../../services/solicitudService";
 
+import { createReview } from "../../services/reviewService";
+
 const servicios = [
   { id: 1, nombre: "Electricidad" },
   { id: 2, nombre: "Gasfitería" },
@@ -28,14 +31,36 @@ const servicios = [
 ];
 
 const comunas = [
-  { id: 11, nombre: "Concepción" },
-  { id: 12, nombre: "Talcahuano" },
-  { id: 13, nombre: "San Pedro de la Paz" },
+  { id: 1, nombre: "Iquique" },
+  { id: 2, nombre: "Antofagasta" },
+  { id: 3, nombre: "Calama" },
+  { id: 4, nombre: "Copiapó" },
+  { id: 5, nombre: "La Serena" },
+  { id: 6, nombre: "Coquimbo" },
+  { id: 7, nombre: "Valparaíso" },
+  { id: 8, nombre: "Viña del Mar" },
+  { id: 9, nombre: "Quilpué" },
+  { id: 10, nombre: "Santiago" },
+  { id: 11, nombre: "Providencia" },
+  { id: 12, nombre: "Maipú" },
+  { id: 13, nombre: "Puente Alto" },
+  { id: 14, nombre: "Las Condes" },
+  { id: 15, nombre: "Rancagua" },
+  { id: 16, nombre: "Talca" },
+  { id: 17, nombre: "Curicó" },
+  { id: 18, nombre: "Chillán" },
+  { id: 19, nombre: "Concepción" },
+  { id: 20, nombre: "Talcahuano" },
+  { id: 21, nombre: "San Pedro de la Paz" },
+  { id: 22, nombre: "Los Ángeles" },
+  { id: 23, nombre: "Temuco" },
+  { id: 24, nombre: "Valdivia" },
+  { id: 25, nombre: "Puerto Montt" },
 ];
 
 const initialForm = {
   servicio_id_servicio: 1,
-  comuna_id_comuna: 11,
+  comuna_id_comuna: 19,
   titulo_solicitud: "",
   descripcion_problema: "",
   urgencia: "MEDIA",
@@ -52,8 +77,14 @@ function ClienteDashboard() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
   const [creandoSolicitud, setCreandoSolicitud] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [sendingReview, setSendingReview] = useState(false);
 
   async function cargarSolicitudes() {
     if (!usuario?.rut) {
@@ -63,6 +94,8 @@ function ClienteDashboard() {
 
     try {
       setLoadingSolicitudes(true);
+      setError("");
+
       const data = await getSolicitudesCliente(usuario.rut);
       setSolicitudes(data);
     } catch {
@@ -87,8 +120,7 @@ function ClienteDashboard() {
     setForm((prev) => ({
       ...prev,
       [name]:
-        name === "servicio_id_servicio" ||
-        name === "comuna_id_comuna"
+        name === "servicio_id_servicio" || name === "comuna_id_comuna"
           ? Number(value)
           : value,
     }));
@@ -125,11 +157,46 @@ function ClienteDashboard() {
 
       setSuccess("Solicitud creada correctamente.");
       setForm(initialForm);
+
       await cargarSolicitudes();
     } catch {
       setError("No se pudo crear la solicitud.");
     } finally {
       setCreandoSolicitud(false);
+    }
+  }
+
+  async function handleCreateReview(idSolicitud: number) {
+    if (!reviewComment.trim()) {
+      setError("Debes escribir un comentario para la reseña.");
+      return;
+    }
+
+    try {
+      setSendingReview(true);
+      setError("");
+      setSuccess("");
+
+      await createReview({
+        id_solicitud: idSolicitud,
+        calificacion: reviewRating,
+        comentario: reviewComment,
+      });
+
+      setSuccess("Reseña creada correctamente.");
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewingId(null);
+
+      await cargarSolicitudes();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la reseña."
+      );
+    } finally {
+      setSendingReview(false);
     }
   }
 
@@ -142,6 +209,7 @@ function ClienteDashboard() {
           <h1 className="text-4xl font-bold text-gray-900">
             Panel del Cliente
           </h1>
+
           <p className="mt-2 text-gray-600">
             Crea solicitudes técnicas y revisa el estado de tus servicios.
           </p>
@@ -158,6 +226,7 @@ function ClienteDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Solicitar Servicio
                 </h2>
+
                 <p className="text-sm text-gray-500">
                   Registra un problema para buscar ayuda técnica.
                 </p>
@@ -178,151 +247,102 @@ function ClienteDashboard() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  Título
-                </label>
-                <input
-                  name="titulo_solicitud"
-                  value={form.titulo_solicitud}
-                  onChange={handleChange}
-                  required
-                  placeholder="Ej: Corte eléctrico en cocina"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <select
+                name="servicio_id_servicio"
+                value={form.servicio_id_servicio}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              >
+                {servicios.map((servicio) => (
+                  <option key={servicio.id} value={servicio.id}>
+                    {servicio.nombre}
+                  </option>
+                ))}
+              </select>
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  Servicio
-                </label>
-                <select
-                  name="servicio_id_servicio"
-                  value={form.servicio_id_servicio}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                >
-                  {servicios.map((servicio) => (
-                    <option key={servicio.id} value={servicio.id}>
-                      {servicio.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                name="comuna_id_comuna"
+                value={form.comuna_id_comuna}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              >
+                {comunas.map((comuna) => (
+                  <option key={comuna.id} value={comuna.id}>
+                    {comuna.nombre}
+                  </option>
+                ))}
+              </select>
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  Tipo de problema
-                </label>
-                <input
-                  name="tipo_problema"
-                  value={form.tipo_problema}
-                  onChange={handleChange}
-                  required
-                  placeholder="Ej: Instalación, reparación, mantención"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <input
+                name="titulo_solicitud"
+                value={form.titulo_solicitud}
+                onChange={handleChange}
+                placeholder="Título de la solicitud"
+                required
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              />
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  Descripción
-                </label>
-                <textarea
-                  name="descripcion_problema"
-                  value={form.descripcion_problema}
-                  onChange={handleChange}
-                  required
-                  rows={4}
-                  placeholder="Describe el problema con detalle"
-                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <textarea
+                name="descripcion_problema"
+                value={form.descripcion_problema}
+                onChange={handleChange}
+                placeholder="Describe el problema"
+                required
+                rows={4}
+                className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3"
+              />
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">
-                    Urgencia
-                  </label>
-                  <select
-                    name="urgencia"
-                    value={form.urgencia}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  >
-                    <option value="BAJA">Baja</option>
-                    <option value="MEDIA">Media</option>
-                    <option value="ALTA">Alta</option>
-                  </select>
-                </div>
+              <select
+                name="urgencia"
+                value={form.urgencia}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              >
+                <option value="BAJA">Baja</option>
+                <option value="MEDIA">Media</option>
+                <option value="ALTA">Alta</option>
+              </select>
 
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">
-                    Comuna
-                  </label>
-                  <select
-                    name="comuna_id_comuna"
-                    value={form.comuna_id_comuna}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  >
-                    {comunas.map((comuna) => (
-                      <option key={comuna.id} value={comuna.id}>
-                        {comuna.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <input
+                name="direccion"
+                value={form.direccion}
+                onChange={handleChange}
+                placeholder="Dirección"
+                required
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              />
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  Dirección
-                </label>
-                <input
-                  name="direccion"
-                  value={form.direccion}
-                  onChange={handleChange}
-                  required
-                  placeholder="Ej: Av. Los Carrera 123"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <input
+                name="tipo_problema"
+                value={form.tipo_problema}
+                onChange={handleChange}
+                placeholder="Tipo de problema"
+                required
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              />
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  Referencia de ubicación
-                </label>
-                <input
-                  name="ubicacion_problema_referencia"
-                  value={form.ubicacion_problema_referencia}
-                  onChange={handleChange}
-                  required
-                  maxLength={30}
-                  placeholder="Ej: Cocina, baño, patio"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <input
+                name="foto_problema"
+                value={form.foto_problema}
+                onChange={handleChange}
+                placeholder="URL de imagen opcional"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              />
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">
-                  URL de foto opcional
-                </label>
-                <input
-                  name="foto_problema"
-                  value={form.foto_problema}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <input
+                name="ubicacion_problema_referencia"
+                value={form.ubicacion_problema_referencia}
+                onChange={handleChange}
+                placeholder="Referencia de ubicación"
+                required
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+              />
 
               <button
                 type="submit"
                 disabled={creandoSolicitud}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
               >
-                <Send className="h-5 w-5" />
                 {creandoSolicitud ? "Creando solicitud..." : "Crear solicitud"}
               </button>
             </form>
@@ -364,6 +384,7 @@ function ClienteDashboard() {
                         <h3 className="text-lg font-bold text-gray-900">
                           {solicitud.titulo_solicitud}
                         </h3>
+
                         <p className="mt-1 text-sm text-gray-600">
                           {solicitud.descripcion_problema}
                         </p>
@@ -394,6 +415,85 @@ function ClienteDashboard() {
                         {solicitud.ubicacion_problema_referencia}
                       </p>
                     </div>
+
+                    {solicitud.estado_trabajo === "FINALIZADO" && (
+                      <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                          <div>
+                            <h4 className="font-bold text-gray-900">
+                              Califica el servicio
+                            </h4>
+
+                            <p className="text-sm text-gray-600">
+                              Comparte tu experiencia con el técnico.
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReviewingId(
+                                reviewingId === solicitud.id_solicitud
+                                  ? null
+                                  : solicitud.id_solicitud
+                              )
+                            }
+                            className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600"
+                          >
+                            {reviewingId === solicitud.id_solicitud
+                              ? "Cerrar"
+                              : "⭐ Dejar reseña"}
+                          </button>
+                        </div>
+
+                        {reviewingId === solicitud.id_solicitud && (
+                          <div className="space-y-4">
+                            <div className="flex gap-2">
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setReviewRating(value)}
+                                >
+                                  <Star
+                                    className={`h-7 w-7 ${
+                                      value <= reviewRating
+                                        ? "fill-yellow-500 text-yellow-500"
+                                        : "text-gray-300"
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+
+                            <textarea
+                              value={reviewComment}
+                              onChange={(event) =>
+                                setReviewComment(event.target.value)
+                              }
+                              rows={4}
+                              placeholder="Describe cómo fue el servicio recibido"
+                              className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCreateReview(solicitud.id_solicitud)
+                              }
+                              disabled={sendingReview}
+                              className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
+                            >
+                              <Send className="h-4 w-4" />
+
+                              {sendingReview
+                                ? "Enviando reseña..."
+                                : "Publicar reseña"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

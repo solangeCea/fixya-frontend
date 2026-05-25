@@ -107,13 +107,10 @@ export async function asignarTecnico(
   rutTecnico: string
 ) {
   const response = await fetch(
-    `${API_URL}/solicitudes/${idSolicitud}/asignar-tecnico`,
+    `${API_URL}/solicitudes/${idSolicitud}/asignar-tecnico/${rutTecnico}`,
     {
       method: "PUT",
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        tecnico_usuario_rut: rutTecnico,
-      }),
     }
   );
 
