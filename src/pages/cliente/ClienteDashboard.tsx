@@ -24,6 +24,12 @@ import type {
 import { createReview } from "../../services/reviewService";
 import { getComunas, getServicios } from "../../services/catalogService";
 import type { Comuna, Servicio } from "../../services/catalogService";
+import {
+  acceptCotizacion,
+  getCotizacionesSolicitud,
+  rejectCotizacion,
+} from "../../services/cotizacionService";
+import type { Cotizacion } from "../../services/cotizacionService";
 
 
 const initialForm = {
@@ -46,6 +52,9 @@ function ClienteDashboard() {
   const [comunas, setComunas] = useState<Comuna[]>([]);
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [cotizaciones, setCotizaciones] = useState<Record<number, Cotizacion[]>>(
+    {}
+  );
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
   const [creandoSolicitud, setCreandoSolicitud] = useState(false);
 
@@ -99,6 +108,21 @@ function ClienteDashboard() {
 
       const data = await getSolicitudesCliente(usuario.rut);
       setSolicitudes(data);
+
+      const cotizacionesData = await Promise.all(
+        data.map(async (solicitud) => {
+          try {
+            const items = await getCotizacionesSolicitud(
+              solicitud.id_solicitud
+            );
+            return [solicitud.id_solicitud, items] as const;
+          } catch {
+            return [solicitud.id_solicitud, []] as const;
+          }
+        })
+      );
+
+      setCotizaciones(Object.fromEntries(cotizacionesData));
     } catch {
       setError("No se pudieron cargar tus solicitudes.");
     } finally {
@@ -211,6 +235,28 @@ function ClienteDashboard() {
       );
     } finally {
       setSendingReview(false);
+    }
+  }
+
+  async function handleCotizacionAction(
+    idCotizacion: number,
+    action: "accept" | "reject"
+  ) {
+    try {
+      setError("");
+      setSuccess("");
+
+      if (action === "accept") {
+        await acceptCotizacion(idCotizacion);
+        setSuccess("Cotizacion aceptada correctamente.");
+      } else {
+        await rejectCotizacion(idCotizacion);
+        setSuccess("Cotizacion rechazada correctamente.");
+      }
+
+      await cargarSolicitudes();
+    } catch {
+      setError("No se pudo actualizar la cotizacion.");
     }
   }
 
@@ -450,6 +496,85 @@ function ClienteDashboard() {
                         {solicitud.ubicacion_problema_referencia}
                       </p>
                     </div>
+
+                    {(cotizaciones[solicitud.id_solicitud]?.length || 0) > 0 && (
+                      <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                        <h4 className="mb-3 font-bold text-gray-900">
+                          Cotizaciones recibidas
+                        </h4>
+
+                        <div className="space-y-3">
+                          {cotizaciones[solicitud.id_solicitud].map(
+                            (cotizacion) => (
+                              <div
+                                key={cotizacion.id_cotizacion}
+                                className="rounded-xl bg-white p-4 shadow-sm"
+                              >
+                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                  <div>
+                                    <p className="font-semibold text-gray-900">
+                                      ${cotizacion.monto_estimado}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-600">
+                                      {cotizacion.mensaje_cotizacion}
+                                    </p>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      Tecnico:{" "}
+                                      {cotizacion.tecnico_usuario_rut}
+                                    </p>
+                                  </div>
+
+                                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                                    {cotizacion.estado_cotizacion}
+                                  </span>
+                                </div>
+
+                                {cotizacion.archivo_pdf_url && (
+                                  <a
+                                    href={`http://localhost:8000${cotizacion.archivo_pdf_url}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-3 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800"
+                                  >
+                                    Descargar PDF
+                                  </a>
+                                )}
+
+                                {cotizacion.estado_cotizacion ===
+                                  "ENVIADA" && (
+                                  <div className="mt-4 flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleCotizacionAction(
+                                          cotizacion.id_cotizacion,
+                                          "accept"
+                                        )
+                                      }
+                                      className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                                    >
+                                      Aceptar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleCotizacionAction(
+                                          cotizacion.id_cotizacion,
+                                          "reject"
+                                        )
+                                      }
+                                      className="rounded-xl bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+                                    >
+                                      Rechazar
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {solicitud.estado_trabajo === "FINALIZADO" && (
                       <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">

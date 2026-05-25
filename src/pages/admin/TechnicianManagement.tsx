@@ -10,7 +10,10 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { getTechnicians } from "../../services/technicianService";
+import {
+  approveTechnician,
+  getTechnicians,
+} from "../../services/technicianService";
 import type { Tecnico } from "../../services/technicianService";
 
 import { getUsers } from "../../services/userService";
@@ -31,45 +34,63 @@ export default function TechnicianManagement() {
   const [selectedTechnician, setSelectedTechnician] =
     useState<TecnicoAdmin | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  async function cargarTecnicos() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [tecnicosData, usuariosData] = await Promise.all([
+        getTechnicians(),
+        getUsers(),
+      ]);
+
+      const tecnicosCompletos: TecnicoAdmin[] = tecnicosData.map(
+        (tecnico) => {
+          const usuario = usuariosData.find(
+            (user: UsuarioAdmin) => user.rut === tecnico.usuario_rut
+          );
+
+          return {
+            ...tecnico,
+            nombre_completo:
+              usuario?.nombre_completo || "Tecnico sin usuario",
+            correo: usuario?.correo || "Sin correo",
+            telefono: usuario?.telefono || "Sin telefono",
+          };
+        }
+      );
+
+      setTechnicians(tecnicosCompletos);
+    } catch {
+      setError("No se pudieron cargar los tecnicos del sistema.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function cargarTecnicos() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const [tecnicosData, usuariosData] = await Promise.all([
-          getTechnicians(),
-          getUsers(),
-        ]);
-
-        const tecnicosCompletos: TecnicoAdmin[] = tecnicosData.map(
-          (tecnico) => {
-            const usuario = usuariosData.find(
-              (user: UsuarioAdmin) => user.rut === tecnico.usuario_rut
-            );
-
-            return {
-              ...tecnico,
-              nombre_completo:
-                usuario?.nombre_completo || "Técnico sin usuario",
-              correo: usuario?.correo || "Sin correo",
-              telefono: usuario?.telefono || "Sin teléfono",
-            };
-          }
-        );
-
-        setTechnicians(tecnicosCompletos);
-      } catch {
-        setError("No se pudieron cargar los técnicos del sistema.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     cargarTecnicos();
   }, []);
+
+  async function handleApprove(rut: string) {
+    try {
+      setActionLoading(rut);
+      setError("");
+      setSuccess("");
+
+      await approveTechnician(rut);
+      setSuccess("Tecnico aprobado correctamente.");
+      await cargarTecnicos();
+    } catch {
+      setError("No se pudo aprobar el tecnico.");
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   const filteredTechnicians = useMemo(() => {
     return technicians.filter((tech) => {
@@ -202,6 +223,12 @@ export default function TechnicianManagement() {
         </div>
       )}
 
+      {success && !loading && (
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-700">
+          {success}
+        </div>
+      )}
+
       {!loading && !error && (
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="overflow-x-auto">
@@ -296,12 +323,26 @@ export default function TechnicianManagement() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => setSelectedTechnician(tech)}
-                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                      >
-                        Ver perfil
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setSelectedTechnician(tech)}
+                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                        >
+                          Ver perfil
+                        </button>
+
+                        {!tech.tecnico_verificado && (
+                          <button
+                            onClick={() => handleApprove(tech.usuario_rut)}
+                            disabled={actionLoading === tech.usuario_rut}
+                            className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:bg-green-300"
+                          >
+                            {actionLoading === tech.usuario_rut
+                              ? "Aprobando..."
+                              : "Aprobar tecnico"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

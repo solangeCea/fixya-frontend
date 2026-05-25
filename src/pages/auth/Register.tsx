@@ -8,6 +8,14 @@ import { createUser } from "../../services/userService";
 import type { UsuarioCreate } from "../../services/userService";
 import { getComunas } from "../../services/catalogService";
 import type { Comuna } from "../../services/catalogService";
+import { getServicios } from "../../services/catalogService";
+import type { Servicio } from "../../services/catalogService";
+import { login } from "../../services/authService";
+import { saveToken } from "../../services/token";
+import {
+  createTechnicianProfile,
+  uploadTechnicianDocument,
+} from "../../services/technicianService";
 
 type UserType = "cliente" | "tecnico";
 
@@ -21,6 +29,10 @@ interface RegisterForm {
   contrasena: string;
   confirmarContrasena: string;
   comuna_id_comuna: number;
+  descripcion_perfil: string;
+  experiencia_anios: number;
+  nivel_tecnico: string;
+  servicio_id_servicio: number;
 }
 
 const initialForm: RegisterForm = {
@@ -33,12 +45,18 @@ const initialForm: RegisterForm = {
   contrasena: "",
   confirmarContrasena: "",
   comuna_id_comuna: 0,
+  descripcion_perfil: "",
+  experiencia_anios: 0,
+  nivel_tecnico: "Inicial",
+  servicio_id_servicio: 0,
 };
 
 function Register() {
   const [userType, setUserType] = useState<UserType>("cliente");
   const [form, setForm] = useState<RegisterForm>(initialForm);
   const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [documento, setDocumento] = useState<File | null>(null);
   const [loadingComunas, setLoadingComunas] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -51,11 +69,25 @@ function Register() {
         setLoadingComunas(true);
         setError("");
 
-        const data = await getComunas();
-        setComunas(data);
+        const [comunasData, serviciosData] = await Promise.all([
+          getComunas(),
+          getServicios(),
+        ]);
+
+        const serviciosActivos = serviciosData.filter(
+          (servicio) => servicio.estado_servicio
+        );
+
+        setComunas(comunasData);
+        setServicios(serviciosActivos);
         setForm((prev) => ({
           ...prev,
-          comuna_id_comuna: prev.comuna_id_comuna || data[0]?.id_comuna || 0,
+          comuna_id_comuna:
+            prev.comuna_id_comuna || comunasData[0]?.id_comuna || 0,
+          servicio_id_servicio:
+            prev.servicio_id_servicio ||
+            serviciosActivos[0]?.id_servicio ||
+            0,
         }));
       } catch {
         setError("No se pudieron cargar las comunas.");
@@ -74,12 +106,78 @@ function Register() {
 
     setForm((prev) => ({
       ...prev,
-      [name]: name === "comuna_id_comuna" ? Number(value) : value,
+      [name]:
+        name === "comuna_id_comuna" ||
+        name === "experiencia_anios" ||
+        name === "servicio_id_servicio"
+          ? Number(value)
+          : value,
     }));
+  }
+
+  function validarFormulario() {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    const telefonoRegex = /^\d{8,12}$/;
+    const nacimiento = new Date(`${form.fecha_nacimiento}T00:00:00`);
+    const hoy = new Date();
+    const edad =
+      hoy.getFullYear() -
+      nacimiento.getFullYear() -
+      (hoy <
+      new Date(
+        hoy.getFullYear(),
+        nacimiento.getMonth(),
+        nacimiento.getDate()
+      )
+        ? 1
+        : 0);
+
+    if (!form.rut.trim() || !form.nombre_completo.trim()) {
+      return "RUT y nombre son obligatorios.";
+    }
+
+    if (!telefonoRegex.test(form.telefono)) {
+      return "El telefono debe contener solo numeros y tener entre 8 y 12 digitos.";
+    }
+
+    if (!passwordRegex.test(form.contrasena)) {
+      return "La contrasena debe tener 8 caracteres, mayuscula, minuscula y numero.";
+    }
+
+    if (!form.fecha_nacimiento || nacimiento > hoy || edad < 18) {
+      return "Debes tener al menos 18 anos y usar una fecha valida.";
+    }
+
+    if (userType === "tecnico") {
+      if (!form.descripcion_perfil.trim() || form.experiencia_anios < 0) {
+        return "Completa descripcion y experiencia del tecnico.";
+      }
+
+      if (!form.servicio_id_servicio) {
+        return "Selecciona un servicio para el perfil tecnico.";
+      }
+
+      if (!documento) {
+        return "Debes subir un documento tecnico.";
+      }
+
+      const tiposPermitidos = ["application/pdf", "image/jpeg", "image/png"];
+      if (!tiposPermitidos.includes(documento.type)) {
+        return "El documento debe ser PDF, JPG o PNG.";
+      }
+    }
+
+    return "";
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const validationError = validarFormulario();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     if (form.contrasena !== form.confirmarContrasena) {
       setError("Las contraseñas no coinciden.");
@@ -109,7 +207,28 @@ function Register() {
 
       await createUser(payload);
 
-      alert("Cuenta creada correctamente");
+      if (userType === "tecnico") {
+        await createTechnicianProfile({
+          usuario_rut: form.rut,
+          descripcion_perfil: form.descripcion_perfil,
+          experiencia_anios: form.experiencia_anios,
+          nivel_tecnico: form.nivel_tecnico,
+          servicios: [form.servicio_id_servicio],
+          comunas: [form.comuna_id_comuna],
+        });
+
+        const loginResponse = await login(form.correo, form.contrasena);
+        saveToken(loginResponse.access_token);
+
+        if (documento) {
+          await uploadTechnicianDocument({
+            tecnico_usuario_rut: form.rut,
+            tipo_documento: "CERTIFICADO_TECNICO",
+            archivo: documento,
+          });
+        }
+      }
+
       navigate("/login");
     } catch (err) {
       setError(
@@ -347,9 +466,94 @@ function Register() {
             </div>
 
             {userType === "tecnico" && (
-              <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                El registro como técnico crea el usuario con rol TÉCNICO.
-                El perfil técnico detallado se completará desde el módulo de técnicos.
+              <div className="space-y-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block font-medium text-gray-700">
+                      Servicio principal
+                    </label>
+                    <select
+                      name="servicio_id_servicio"
+                      value={form.servicio_id_servicio}
+                      onChange={handleChange}
+                      disabled={servicios.length === 0}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      {servicios.length === 0 && (
+                        <option value={0}>Sin servicios disponibles</option>
+                      )}
+                      {servicios.map((servicio) => (
+                        <option
+                          key={servicio.id_servicio}
+                          value={servicio.id_servicio}
+                        >
+                          {servicio.nombre_servicio}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block font-medium text-gray-700">
+                      Nivel tecnico
+                    </label>
+                    <select
+                      name="nivel_tecnico"
+                      value={form.nivel_tecnico}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      <option value="Inicial">Inicial</option>
+                      <option value="Intermedio">Intermedio</option>
+                      <option value="Avanzado">Avanzado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-medium text-gray-700">
+                    Experiencia en anos
+                  </label>
+                  <input
+                    name="experiencia_anios"
+                    value={form.experiencia_anios}
+                    onChange={handleChange}
+                    type="number"
+                    min="0"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-medium text-gray-700">
+                    Descripcion del perfil
+                  </label>
+                  <input
+                    name="descripcion_perfil"
+                    value={form.descripcion_perfil}
+                    onChange={handleChange}
+                    type="text"
+                    placeholder="Especialidad, experiencia y tipo de trabajos"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-medium text-gray-700">
+                    Documento tecnico
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(event) =>
+                      setDocumento(event.target.files?.[0] || null)
+                    }
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                  <p className="mt-2 text-xs text-yellow-800">
+                    Formatos permitidos: PDF, JPG o PNG.
+                  </p>
+                </div>
               </div>
             )}
 

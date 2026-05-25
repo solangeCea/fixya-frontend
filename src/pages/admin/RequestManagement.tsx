@@ -1,25 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  ClipboardList,
-  RefreshCw,
-  UserCheck,
-} from "lucide-react";
+import { AlertCircle, ClipboardList, RefreshCw } from "lucide-react";
 
-import {
-  asignarTecnico,
-  getSolicitudes,
-} from "../../services/solicitudService";
+import { getSolicitudes } from "../../services/solicitudService";
 import type { Solicitud } from "../../services/solicitudService";
-
-import { getTechnicians } from "../../services/technicianService";
-import type { Tecnico } from "../../services/technicianService";
 import { getComunas, getServicios } from "../../services/catalogService";
 import type { Comuna, Servicio } from "../../services/catalogService";
-
-interface TecnicoOption extends Tecnico {
-  nombre_completo?: string;
-}
 
 function getEstadoStyle(estado: string) {
   if (estado === "INICIADO") return "bg-blue-100 text-blue-700";
@@ -33,33 +18,23 @@ function getEstadoStyle(estado: string) {
 
 function RequestManagement() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
-  const [tecnicos, setTecnicos] = useState<TecnicoOption[]>([]);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [comunas, setComunas] = useState<Comuna[]>([]);
-  const [selectedTecnicos, setSelectedTecnicos] = useState<Record<number, string>>(
-    {}
-  );
-
   const [loading, setLoading] = useState(true);
-  const [assigning, setAssigning] = useState<number | null>(null);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   async function cargarDatos() {
     try {
       setLoading(true);
       setError("");
 
-      const [solicitudesData, tecnicosData, serviciosData, comunasData] =
-        await Promise.all([
-          getSolicitudes(),
-          getTechnicians(),
-          getServicios(),
-          getComunas(),
-        ]);
+      const [solicitudesData, serviciosData, comunasData] = await Promise.all([
+        getSolicitudes(),
+        getServicios(),
+        getComunas(),
+      ]);
 
       setSolicitudes(solicitudesData);
-      setTecnicos(tecnicosData);
       setServicios(serviciosData);
       setComunas(comunasData);
     } catch (error) {
@@ -79,6 +54,11 @@ function RequestManagement() {
     [solicitudes]
   );
 
+  const solicitudesSinTecnico = useMemo(
+    () => solicitudes.filter((s) => !s.tecnico_usuario_rut),
+    [solicitudes]
+  );
+
   const serviciosPorId = useMemo(() => {
     return new Map(
       servicios.map((servicio) => [
@@ -94,44 +74,14 @@ function RequestManagement() {
     );
   }, [comunas]);
 
-  const tecnicosAsignables = useMemo(
-    () => tecnicos.filter((tecnico) => tecnico.tecnico_verificado),
-    [tecnicos]
-  );
-
-  async function handleAsignar(idSolicitud: number) {
-    const rutTecnico = selectedTecnicos[idSolicitud];
-
-    if (!rutTecnico) {
-      setError("Debes seleccionar un técnico.");
-      return;
-    }
-
-    try {
-      setAssigning(idSolicitud);
-      setError("");
-      setSuccess("");
-
-      await asignarTecnico(idSolicitud, rutTecnico);
-
-      setSuccess("Técnico asignado correctamente.");
-      await cargarDatos();
-    } catch (error) {
-      console.error(error);
-      setError("No se pudo asignar el técnico.");
-    } finally {
-      setAssigning(null);
-    }
-  }
-
   return (
     <div className="space-y-8 p-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">
-          Gestión de Solicitudes
+          Gestion de Solicitudes
         </h1>
         <p className="mt-2 text-gray-600">
-          Administra solicitudes y asigna técnicos.
+          Vista administrativa de seguimiento. Los tecnicos aceptan trabajos desde su panel.
         </p>
       </div>
 
@@ -151,9 +101,9 @@ function RequestManagement() {
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Técnicos disponibles</p>
-          <p className="mt-2 text-3xl font-bold text-green-700">
-            {tecnicosAsignables.length}
+          <p className="text-sm text-gray-500">Sin tecnico</p>
+          <p className="mt-2 text-3xl font-bold text-yellow-700">
+            {solicitudesSinTecnico.length}
           </p>
         </div>
       </div>
@@ -179,15 +129,13 @@ function RequestManagement() {
         </div>
       )}
 
-      {success && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
-          {success}
-        </div>
-      )}
-
       {loading ? (
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
           Cargando solicitudes...
+        </div>
+      ) : solicitudes.length === 0 ? (
+        <div className="rounded-2xl bg-white p-8 text-center text-gray-600 shadow-sm">
+          No hay solicitudes registradas.
         </div>
       ) : (
         <div className="space-y-4">
@@ -217,9 +165,9 @@ function RequestManagement() {
                     {solicitud.descripcion_problema}
                   </p>
 
-                  <div className="grid gap-2 text-sm text-gray-600">
+                  <div className="grid gap-2 text-sm text-gray-600 md:grid-cols-2">
                     <p>
-                      <strong>Dirección:</strong> {solicitud.direccion}
+                      <strong>Direccion:</strong> {solicitud.direccion}
                     </p>
                     <p>
                       <strong>Urgencia:</strong> {solicitud.urgencia}
@@ -235,70 +183,19 @@ function RequestManagement() {
                         `ID ${solicitud.comuna_id_comuna}`}
                     </p>
                     <p>
-                      <strong>Tecnico asignado:</strong>{" "}
-                      {solicitud.tecnico_usuario_rut || "Sin asignar"}
+                      <strong>Tecnico:</strong>{" "}
+                      {solicitud.tecnico_usuario_rut || "Pendiente de aceptacion"}
                     </p>
                   </div>
                 </div>
 
-                <div className="w-full space-y-3 lg:w-80">
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getEstadoStyle(
-                      solicitud.estado_trabajo
-                    )}`}
-                  >
-                    {solicitud.estado_trabajo}
-                  </span>
-
-                  {solicitud.estado_trabajo === "INICIADO" &&
-                    !solicitud.tecnico_usuario_rut && (
-                    <>
-                      <select
-                        value={selectedTecnicos[solicitud.id_solicitud] || ""}
-                        onChange={(event) =>
-                          setSelectedTecnicos((prev) => ({
-                            ...prev,
-                            [solicitud.id_solicitud]: event.target.value,
-                          }))
-                        }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      >
-                        <option value="">Seleccionar técnico</option>
-
-                        {tecnicosAsignables.map((tecnico) => (
-                          <option
-                            key={tecnico.usuario_rut}
-                            value={tecnico.usuario_rut}
-                          >
-                            {tecnico.usuario_rut}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        onClick={() => handleAsignar(solicitud.id_solicitud)}
-                        disabled={
-                          assigning === solicitud.id_solicitud ||
-                          tecnicosAsignables.length === 0
-                        }
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
-                      >
-                        <UserCheck size={18} />
-                        {assigning === solicitud.id_solicitud
-                          ? "Asignando..."
-                          : "Asignar técnico"}
-                      </button>
-                    </>
-                  )}
-
-                  {solicitud.estado_trabajo === "INICIADO" &&
-                    !solicitud.tecnico_usuario_rut &&
-                    tecnicosAsignables.length === 0 && (
-                      <p className="rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
-                        No hay tecnicos verificados disponibles.
-                      </p>
-                    )}
-                </div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getEstadoStyle(
+                    solicitud.estado_trabajo
+                  )}`}
+                >
+                  {solicitud.estado_trabajo}
+                </span>
               </div>
             </div>
           ))}

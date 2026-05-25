@@ -7,12 +7,14 @@ import {
   MapPin,
   PlayCircle,
   RefreshCw,
+  Send,
   Wrench,
 } from "lucide-react";
 
 import Navbar from "../../components/Navbar";
 import { useAuth } from "../../context/AuthContext";
 import {
+  asignarTecnico,
   finalizarSolicitud,
   getSolicitudes,
   getSolicitudesTecnico,
@@ -22,6 +24,7 @@ import {
 import type { Solicitud } from "../../services/solicitudService";
 import { getServicios } from "../../services/catalogService";
 import type { Servicio } from "../../services/catalogService";
+import { createCotizacion } from "../../services/cotizacionService";
 
 function getEstadoStyle(estado: string) {
   if (estado === "INICIADO") {
@@ -62,6 +65,9 @@ function TecnicoDashboard() {
   const [costosFinales, setCostosFinales] = useState<Record<number, string>>(
     {}
   );
+  const [cotizaciones, setCotizaciones] = useState<
+    Record<number, { monto: string; detalle: string; vigencia: string }>
+  >({});
 
   async function cargarDatos() {
     if (!usuario?.rut) {
@@ -139,6 +145,28 @@ function TecnicoDashboard() {
     }
   }
 
+  async function handleAceptarTrabajo(idSolicitud: number) {
+    if (!usuario?.rut) {
+      setError("No se pudo identificar al tecnico autenticado.");
+      return;
+    }
+
+    try {
+      setAccionLoading(idSolicitud);
+      setError("");
+      setSuccess("");
+
+      await asignarTecnico(idSolicitud, usuario.rut);
+
+      setSuccess("Trabajo aceptado correctamente.");
+      await cargarDatos();
+    } catch {
+      setError("No se pudo aceptar el trabajo.");
+    } finally {
+      setAccionLoading(null);
+    }
+  }
+
   async function handleFinalizar(idSolicitud: number) {
     const costo = Number(costosFinales[idSolicitud]);
 
@@ -162,6 +190,47 @@ function TecnicoDashboard() {
       await cargarDatos();
     } catch {
       setError("No se pudo finalizar la solicitud.");
+    } finally {
+      setAccionLoading(null);
+    }
+  }
+
+  async function handleCrearCotizacion(idSolicitud: number) {
+    if (!usuario?.rut) {
+      setError("No se pudo identificar al tecnico autenticado.");
+      return;
+    }
+
+    const cotizacion = cotizaciones[idSolicitud];
+    const monto = Number(cotizacion?.monto);
+
+    if (!monto || monto <= 0 || !cotizacion?.detalle?.trim() || !cotizacion.vigencia) {
+      setError("Completa monto, detalle y vigencia de la cotizacion.");
+      return;
+    }
+
+    try {
+      setAccionLoading(idSolicitud);
+      setError("");
+      setSuccess("");
+
+      await createCotizacion({
+        solicitud_id_solicitud: idSolicitud,
+        tecnico_usuario_rut: usuario.rut,
+        monto_estimado: monto,
+        mensaje_cotizacion: cotizacion.detalle,
+        fecha_vigencia: new Date(`${cotizacion.vigencia}T23:59:00`).toISOString(),
+      });
+
+      setSuccess("Cotizacion creada y PDF generado correctamente.");
+      setCotizaciones((prev) => ({
+        ...prev,
+        [idSolicitud]: { monto: "", detalle: "", vigencia: "" },
+      }));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo crear la cotizacion."
+      );
     } finally {
       setAccionLoading(null);
     }
@@ -328,9 +397,21 @@ function TecnicoDashboard() {
                       </div>
 
                       <div className="mt-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
-                        Esta solicitud aún debe ser asignada por un
-                        administrador.
+                        Esta solicitud esta disponible para ser aceptada.
                       </div>
+
+                      <button
+                        onClick={() =>
+                          handleAceptarTrabajo(solicitud.id_solicitud)
+                        }
+                        disabled={accionLoading === solicitud.id_solicitud}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        {accionLoading === solicitud.id_solicitud
+                          ? "Aceptando..."
+                          : "Aceptar trabajo"}
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -394,6 +475,106 @@ function TecnicoDashboard() {
                           </p>
                         )}
                       </div>
+
+                      {(solicitud.estado_trabajo === "ASIGNADO" ||
+                        solicitud.estado_trabajo === "EN_PROCESO") && (
+                        <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                          <h5 className="mb-3 font-semibold text-gray-900">
+                            Generar cotizacion
+                          </h5>
+
+                          <div className="grid gap-3">
+                            <input
+                              type="number"
+                              min="1"
+                              value={
+                                cotizaciones[solicitud.id_solicitud]?.monto ||
+                                ""
+                              }
+                              onChange={(event) =>
+                                setCotizaciones((prev) => ({
+                                  ...prev,
+                                  [solicitud.id_solicitud]: {
+                                    monto: event.target.value,
+                                    detalle:
+                                      prev[solicitud.id_solicitud]?.detalle ||
+                                      "",
+                                    vigencia:
+                                      prev[solicitud.id_solicitud]?.vigencia ||
+                                      "",
+                                  },
+                                }))
+                              }
+                              placeholder="Monto estimado"
+                              className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            />
+
+                            <textarea
+                              value={
+                                cotizaciones[solicitud.id_solicitud]
+                                  ?.detalle || ""
+                              }
+                              onChange={(event) =>
+                                setCotizaciones((prev) => ({
+                                  ...prev,
+                                  [solicitud.id_solicitud]: {
+                                    monto:
+                                      prev[solicitud.id_solicitud]?.monto ||
+                                      "",
+                                    detalle: event.target.value,
+                                    vigencia:
+                                      prev[solicitud.id_solicitud]?.vigencia ||
+                                      "",
+                                  },
+                                }))
+                              }
+                              rows={3}
+                              placeholder="Detalle o condiciones"
+                              className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            />
+
+                            <input
+                              type="date"
+                              value={
+                                cotizaciones[solicitud.id_solicitud]
+                                  ?.vigencia || ""
+                              }
+                              onChange={(event) =>
+                                setCotizaciones((prev) => ({
+                                  ...prev,
+                                  [solicitud.id_solicitud]: {
+                                    monto:
+                                      prev[solicitud.id_solicitud]?.monto ||
+                                      "",
+                                    detalle:
+                                      prev[solicitud.id_solicitud]?.detalle ||
+                                      "",
+                                    vigencia: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            />
+
+                            <button
+                              onClick={() =>
+                                handleCrearCotizacion(
+                                  solicitud.id_solicitud
+                                )
+                              }
+                              disabled={
+                                accionLoading === solicitud.id_solicitud
+                              }
+                              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-indigo-300"
+                            >
+                              <Send className="h-5 w-5" />
+                              {accionLoading === solicitud.id_solicitud
+                                ? "Generando..."
+                                : "Generar cotizacion"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {solicitud.estado_trabajo === "ASIGNADO" && (
                         <button

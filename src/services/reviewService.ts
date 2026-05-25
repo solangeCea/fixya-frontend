@@ -21,7 +21,7 @@ export interface Review {
   resena_reportada: string;
   motivo_reporte?: string | null;
   fecha_reporte?: string | null;
-  reporte_resuelto?: string;
+  reporte_resuelto?: string | null;
   fecha_resolucion?: string | null;
   usuario_rut_reporta?: string | null;
   admin_rut_resuelve?: string | null;
