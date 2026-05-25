@@ -22,14 +22,19 @@ export interface Review {
   motivo_reporte?: string | null;
   fecha_reporte?: string | null;
   reporte_resuelto?: string;
+  fecha_resolucion?: string | null;
+  usuario_rut_reporta?: string | null;
+  admin_rut_resuelve?: string | null;
 }
 
 export async function getReviews(): Promise<Review[]> {
   const [activasResponse, reportadasResponse] = await Promise.all([
     fetch(`${API_URL}/resenas/`, {
+      method: "GET",
       headers: getAuthHeaders(),
     }),
     fetch(`${API_URL}/resenas/reportadas`, {
+      method: "GET",
       headers: getAuthHeaders(),
     }),
   ]);
@@ -49,6 +54,19 @@ export async function getReviews(): Promise<Review[]> {
   );
 }
 
+export async function getReportedReviews(): Promise<Review[]> {
+  const response = await fetch(`${API_URL}/resenas/reportadas`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener reseñas reportadas");
+  }
+
+  return response.json();
+}
+
 export async function createReview(data: {
   id_solicitud: number;
   calificacion: number;
@@ -61,6 +79,8 @@ export async function createReview(data: {
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Error creando reseña:", response.status, errorText);
     throw new Error("Error al crear reseña");
   }
 
@@ -74,7 +94,8 @@ export async function approveReview(idResena: number) {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        accion: "APROBAR",
+        aprobar_publicacion: true,
+        motivo_reporte: "Aprobada por administrador",
       }),
     }
   );
@@ -95,7 +116,8 @@ export async function hideReview(idResena: number) {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        accion: "OCULTAR",
+        aprobar_publicacion: false,
+        motivo_reporte: "Ocultada por administrador",
       }),
     }
   );
