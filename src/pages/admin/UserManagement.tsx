@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 
 import { getUsers } from "../../services/userService";
 import type { UsuarioAdmin } from "../../services/userService";
+import { getComunas } from "../../services/catalogService";
+import type { Comuna } from "../../services/catalogService";
 
 type FilterType = "all" | "CLIENTE" | "TECNICO" | "ADMIN";
 
@@ -16,6 +18,7 @@ function getRolLabel(rol: string) {
 
 export default function UserManagement() {
   const [users, setUsers] = useState<UsuarioAdmin[]>([]);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -27,8 +30,13 @@ export default function UserManagement() {
         setLoading(true);
         setError("");
 
-        const data = await getUsers();
-        setUsers(data);
+        const [usuariosData, comunasData] = await Promise.all([
+          getUsers(),
+          getComunas(),
+        ]);
+
+        setUsers(usuariosData);
+        setComunas(comunasData);
       } catch (err) {
         setError("No se pudieron cargar los usuarios del sistema.");
       } finally {
@@ -54,6 +62,12 @@ export default function UserManagement() {
       return matchesFilter && matchesSearch;
     });
   }, [users, filter, searchTerm]);
+
+  const comunasPorId = useMemo(() => {
+    return new Map(
+      comunas.map((comuna) => [comuna.id_comuna, comuna.nombre_comuna])
+    );
+  }, [comunas]);
 
   const totalClientes = users.filter(
     (user) => user.tipo_usuario === "CLIENTE"
@@ -263,7 +277,10 @@ export default function UserManagement() {
                     <td className="px-6 py-4">
                       <p className="flex items-center gap-2 text-sm text-gray-700">
                         <MapPin className="h-4 w-4 text-gray-400" />
-                        ID comuna {user.comuna_id_comuna}
+                        {user.comuna_id_comuna
+                          ? comunasPorId.get(user.comuna_id_comuna) ||
+                            `ID comuna ${user.comuna_id_comuna}`
+                          : "Sin comuna"}
                       </p>
                     </td>
 

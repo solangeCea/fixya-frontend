@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Wrench, User, Briefcase, AlertCircle } from "lucide-react";
@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 
 import { createUser } from "../../services/userService";
 import type { UsuarioCreate } from "../../services/userService";
+import { getComunas } from "../../services/catalogService";
+import type { Comuna } from "../../services/catalogService";
 
 type UserType = "cliente" | "tecnico";
 
@@ -30,16 +32,40 @@ const initialForm: RegisterForm = {
   telefono: "",
   contrasena: "",
   confirmarContrasena: "",
-  comuna_id_comuna: 11,
+  comuna_id_comuna: 0,
 };
 
 function Register() {
   const [userType, setUserType] = useState<UserType>("cliente");
   const [form, setForm] = useState<RegisterForm>(initialForm);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [loadingComunas, setLoadingComunas] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    async function cargarComunas() {
+      try {
+        setLoadingComunas(true);
+        setError("");
+
+        const data = await getComunas();
+        setComunas(data);
+        setForm((prev) => ({
+          ...prev,
+          comuna_id_comuna: prev.comuna_id_comuna || data[0]?.id_comuna || 0,
+        }));
+      } catch {
+        setError("No se pudieron cargar las comunas.");
+      } finally {
+        setLoadingComunas(false);
+      }
+    }
+
+    cargarComunas();
+  }, []);
 
   function handleChange(
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -57,6 +83,11 @@ function Register() {
 
     if (form.contrasena !== form.confirmarContrasena) {
       setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    if (!form.comuna_id_comuna) {
+      setError("Debes seleccionar una comuna.");
       return;
     }
 
@@ -301,11 +332,17 @@ function Register() {
                 value={form.comuna_id_comuna}
                 onChange={handleChange}
                 required
+                disabled={loadingComunas || comunas.length === 0}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
               >
-                <option value={11}>Concepción</option>
-                <option value={12}>Talcahuano</option>
-                <option value={13}>San Pedro de la Paz</option>
+                {comunas.length === 0 && (
+                  <option value={0}>Sin comunas disponibles</option>
+                )}
+                {comunas.map((comuna) => (
+                  <option key={comuna.id_comuna} value={comuna.id_comuna}>
+                    {comuna.nombre_comuna}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -352,7 +389,7 @@ function Register() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingComunas || comunas.length === 0}
               className="w-full rounded-xl bg-blue-600 py-4 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               {loading

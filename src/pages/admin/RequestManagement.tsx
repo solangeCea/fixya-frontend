@@ -14,6 +14,8 @@ import type { Solicitud } from "../../services/solicitudService";
 
 import { getTechnicians } from "../../services/technicianService";
 import type { Tecnico } from "../../services/technicianService";
+import { getComunas, getServicios } from "../../services/catalogService";
+import type { Comuna, Servicio } from "../../services/catalogService";
 
 interface TecnicoOption extends Tecnico {
   nombre_completo?: string;
@@ -32,6 +34,8 @@ function getEstadoStyle(estado: string) {
 function RequestManagement() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [tecnicos, setTecnicos] = useState<TecnicoOption[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
   const [selectedTecnicos, setSelectedTecnicos] = useState<Record<number, string>>(
     {}
   );
@@ -46,13 +50,18 @@ function RequestManagement() {
       setLoading(true);
       setError("");
 
-      const [solicitudesData, tecnicosData] = await Promise.all([
-        getSolicitudes(),
-        getTechnicians(),
-      ]);
+      const [solicitudesData, tecnicosData, serviciosData, comunasData] =
+        await Promise.all([
+          getSolicitudes(),
+          getTechnicians(),
+          getServicios(),
+          getComunas(),
+        ]);
 
       setSolicitudes(solicitudesData);
       setTecnicos(tecnicosData);
+      setServicios(serviciosData);
+      setComunas(comunasData);
     } catch (error) {
       console.error(error);
       setError("No se pudieron cargar las solicitudes.");
@@ -68,6 +77,26 @@ function RequestManagement() {
   const solicitudesActivas = useMemo(
     () => solicitudes.filter((s) => s.estado_trabajo !== "FINALIZADO"),
     [solicitudes]
+  );
+
+  const serviciosPorId = useMemo(() => {
+    return new Map(
+      servicios.map((servicio) => [
+        servicio.id_servicio,
+        servicio.nombre_servicio,
+      ])
+    );
+  }, [servicios]);
+
+  const comunasPorId = useMemo(() => {
+    return new Map(
+      comunas.map((comuna) => [comuna.id_comuna, comuna.nombre_comuna])
+    );
+  }, [comunas]);
+
+  const tecnicosAsignables = useMemo(
+    () => tecnicos.filter((tecnico) => tecnico.tecnico_verificado),
+    [tecnicos]
   );
 
   async function handleAsignar(idSolicitud: number) {
@@ -124,7 +153,7 @@ function RequestManagement() {
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Técnicos disponibles</p>
           <p className="mt-2 text-3xl font-bold text-green-700">
-            {tecnicos.length}
+            {tecnicosAsignables.length}
           </p>
         </div>
       </div>
@@ -196,7 +225,17 @@ function RequestManagement() {
                       <strong>Urgencia:</strong> {solicitud.urgencia}
                     </p>
                     <p>
-                      <strong>Técnico asignado:</strong>{" "}
+                      <strong>Servicio:</strong>{" "}
+                      {serviciosPorId.get(solicitud.servicio_id_servicio) ||
+                        `ID ${solicitud.servicio_id_servicio}`}
+                    </p>
+                    <p>
+                      <strong>Comuna:</strong>{" "}
+                      {comunasPorId.get(solicitud.comuna_id_comuna) ||
+                        `ID ${solicitud.comuna_id_comuna}`}
+                    </p>
+                    <p>
+                      <strong>Tecnico asignado:</strong>{" "}
                       {solicitud.tecnico_usuario_rut || "Sin asignar"}
                     </p>
                   </div>
@@ -211,7 +250,8 @@ function RequestManagement() {
                     {solicitud.estado_trabajo}
                   </span>
 
-                  {solicitud.estado_trabajo === "INICIADO" && (
+                  {solicitud.estado_trabajo === "INICIADO" &&
+                    !solicitud.tecnico_usuario_rut && (
                     <>
                       <select
                         value={selectedTecnicos[solicitud.id_solicitud] || ""}
@@ -225,7 +265,7 @@ function RequestManagement() {
                       >
                         <option value="">Seleccionar técnico</option>
 
-                        {tecnicos.map((tecnico) => (
+                        {tecnicosAsignables.map((tecnico) => (
                           <option
                             key={tecnico.usuario_rut}
                             value={tecnico.usuario_rut}
@@ -237,7 +277,10 @@ function RequestManagement() {
 
                       <button
                         onClick={() => handleAsignar(solicitud.id_solicitud)}
-                        disabled={assigning === solicitud.id_solicitud}
+                        disabled={
+                          assigning === solicitud.id_solicitud ||
+                          tecnicosAsignables.length === 0
+                        }
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
                       >
                         <UserCheck size={18} />
@@ -247,6 +290,14 @@ function RequestManagement() {
                       </button>
                     </>
                   )}
+
+                  {solicitud.estado_trabajo === "INICIADO" &&
+                    !solicitud.tecnico_usuario_rut &&
+                    tecnicosAsignables.length === 0 && (
+                      <p className="rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
+                        No hay tecnicos verificados disponibles.
+                      </p>
+                    )}
                 </div>
               </div>
             </div>

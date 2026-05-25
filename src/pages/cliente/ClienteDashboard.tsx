@@ -22,45 +22,13 @@ import type {
 } from "../../services/solicitudService";
 
 import { createReview } from "../../services/reviewService";
+import { getComunas, getServicios } from "../../services/catalogService";
+import type { Comuna, Servicio } from "../../services/catalogService";
 
-const servicios = [
-  { id: 1, nombre: "Electricidad" },
-  { id: 2, nombre: "Gasfitería" },
-  { id: 3, nombre: "Carpintería" },
-  { id: 4, nombre: "Cerrajería" },
-];
-
-const comunas = [
-  { id: 1, nombre: "Iquique" },
-  { id: 2, nombre: "Antofagasta" },
-  { id: 3, nombre: "Calama" },
-  { id: 4, nombre: "Copiapó" },
-  { id: 5, nombre: "La Serena" },
-  { id: 6, nombre: "Coquimbo" },
-  { id: 7, nombre: "Valparaíso" },
-  { id: 8, nombre: "Viña del Mar" },
-  { id: 9, nombre: "Quilpué" },
-  { id: 10, nombre: "Santiago" },
-  { id: 11, nombre: "Providencia" },
-  { id: 12, nombre: "Maipú" },
-  { id: 13, nombre: "Puente Alto" },
-  { id: 14, nombre: "Las Condes" },
-  { id: 15, nombre: "Rancagua" },
-  { id: 16, nombre: "Talca" },
-  { id: 17, nombre: "Curicó" },
-  { id: 18, nombre: "Chillán" },
-  { id: 19, nombre: "Concepción" },
-  { id: 20, nombre: "Talcahuano" },
-  { id: 21, nombre: "San Pedro de la Paz" },
-  { id: 22, nombre: "Los Ángeles" },
-  { id: 23, nombre: "Temuco" },
-  { id: 24, nombre: "Valdivia" },
-  { id: 25, nombre: "Puerto Montt" },
-];
 
 const initialForm = {
-  servicio_id_servicio: 1,
-  comuna_id_comuna: 19,
+  servicio_id_servicio: 0,
+  comuna_id_comuna: 0,
   titulo_solicitud: "",
   descripcion_problema: "",
   urgencia: "MEDIA",
@@ -74,6 +42,9 @@ function ClienteDashboard() {
   const { usuario } = useAuth();
 
   const [form, setForm] = useState(initialForm);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [loadingCatalogos, setLoadingCatalogos] = useState(true);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
   const [creandoSolicitud, setCreandoSolicitud] = useState(false);
@@ -85,6 +56,36 @@ function ClienteDashboard() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [sendingReview, setSendingReview] = useState(false);
+
+  async function cargarCatalogos() {
+    try {
+      setLoadingCatalogos(true);
+      setError("");
+
+      const [serviciosData, comunasData] = await Promise.all([
+        getServicios(),
+        getComunas(),
+      ]);
+
+      const serviciosActivos = serviciosData.filter(
+        (servicio) => servicio.estado_servicio
+      );
+
+      setServicios(serviciosActivos);
+      setComunas(comunasData);
+      setForm((prev) => ({
+        ...prev,
+        servicio_id_servicio:
+          prev.servicio_id_servicio || serviciosActivos[0]?.id_servicio || 0,
+        comuna_id_comuna:
+          prev.comuna_id_comuna || comunasData[0]?.id_comuna || 0,
+      }));
+    } catch {
+      setError("No se pudieron cargar servicios y comunas.");
+    } finally {
+      setLoadingCatalogos(false);
+    }
+  }
 
   async function cargarSolicitudes() {
     if (!usuario?.rut) {
@@ -108,6 +109,10 @@ function ClienteDashboard() {
   useEffect(() => {
     cargarSolicitudes();
   }, [usuario?.rut]);
+
+  useEffect(() => {
+    cargarCatalogos();
+  }, []);
 
   function handleChange(
     event:
@@ -134,6 +139,11 @@ function ClienteDashboard() {
       return;
     }
 
+    if (!form.servicio_id_servicio || !form.comuna_id_comuna) {
+      setError("Debes seleccionar servicio y comuna.");
+      return;
+    }
+
     try {
       setCreandoSolicitud(true);
       setError("");
@@ -156,7 +166,11 @@ function ClienteDashboard() {
       await createSolicitud(payload);
 
       setSuccess("Solicitud creada correctamente.");
-      setForm(initialForm);
+      setForm((prev) => ({
+        ...initialForm,
+        servicio_id_servicio: prev.servicio_id_servicio,
+        comuna_id_comuna: prev.comuna_id_comuna,
+      }));
 
       await cargarSolicitudes();
     } catch {
@@ -251,11 +265,18 @@ function ClienteDashboard() {
                 name="servicio_id_servicio"
                 value={form.servicio_id_servicio}
                 onChange={handleChange}
+                disabled={loadingCatalogos || servicios.length === 0}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3"
               >
+                {servicios.length === 0 && (
+                  <option value={0}>Sin servicios disponibles</option>
+                )}
                 {servicios.map((servicio) => (
-                  <option key={servicio.id} value={servicio.id}>
-                    {servicio.nombre}
+                  <option
+                    key={servicio.id_servicio}
+                    value={servicio.id_servicio}
+                  >
+                    {servicio.nombre_servicio}
                   </option>
                 ))}
               </select>
@@ -264,11 +285,15 @@ function ClienteDashboard() {
                 name="comuna_id_comuna"
                 value={form.comuna_id_comuna}
                 onChange={handleChange}
+                disabled={loadingCatalogos || comunas.length === 0}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3"
               >
+                {comunas.length === 0 && (
+                  <option value={0}>Sin comunas disponibles</option>
+                )}
                 {comunas.map((comuna) => (
-                  <option key={comuna.id} value={comuna.id}>
-                    {comuna.nombre}
+                  <option key={comuna.id_comuna} value={comuna.id_comuna}>
+                    {comuna.nombre_comuna}
                   </option>
                 ))}
               </select>
@@ -340,7 +365,12 @@ function ClienteDashboard() {
 
               <button
                 type="submit"
-                disabled={creandoSolicitud}
+                disabled={
+                  creandoSolicitud ||
+                  loadingCatalogos ||
+                  servicios.length === 0 ||
+                  comunas.length === 0
+                }
                 className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
               >
                 {creandoSolicitud ? "Creando solicitud..." : "Crear solicitud"}
@@ -398,7 +428,12 @@ function ClienteDashboard() {
                     <div className="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-2">
                       <p className="flex items-center gap-2">
                         <Wrench className="h-4 w-4 text-gray-400" />
-                        Servicio ID {solicitud.servicio_id_servicio}
+                        {servicios.find(
+                          (servicio) =>
+                            servicio.id_servicio ===
+                            solicitud.servicio_id_servicio
+                        )?.nombre_servicio ||
+                          `Servicio ID ${solicitud.servicio_id_servicio}`}
                       </p>
 
                       <p className="flex items-center gap-2">

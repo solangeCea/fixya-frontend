@@ -20,6 +20,8 @@ import {
 } from "../../services/solicitudService";
 
 import type { Solicitud } from "../../services/solicitudService";
+import { getServicios } from "../../services/catalogService";
+import type { Servicio } from "../../services/catalogService";
 
 function getEstadoStyle(estado: string) {
   if (estado === "INICIADO") {
@@ -52,6 +54,7 @@ function TecnicoDashboard() {
     Solicitud[]
   >([]);
   const [misSolicitudes, setMisSolicitudes] = useState<Solicitud[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
   const [loading, setLoading] = useState(true);
   const [accionLoading, setAccionLoading] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -70,9 +73,10 @@ function TecnicoDashboard() {
       setLoading(true);
       setError("");
 
-      const [todas, asignadas] = await Promise.all([
+      const [todas, asignadas, serviciosData] = await Promise.all([
         getSolicitudes(),
         getSolicitudesTecnico(usuario.rut),
+        getServicios(),
       ]);
 
       const disponibles = todas.filter(
@@ -83,6 +87,7 @@ function TecnicoDashboard() {
 
       setSolicitudesDisponibles(disponibles);
       setMisSolicitudes(asignadas);
+      setServicios(serviciosData);
     } catch {
       setError("No se pudieron cargar las solicitudes del técnico.");
     } finally {
@@ -107,6 +112,15 @@ function TecnicoDashboard() {
       (solicitud) => solicitud.estado_trabajo === "FINALIZADO"
     );
   }, [misSolicitudes]);
+
+  const serviciosPorId = useMemo(() => {
+    return new Map(
+      servicios.map((servicio) => [
+        servicio.id_servicio,
+        servicio.nombre_servicio,
+      ])
+    );
+  }, [servicios]);
 
   async function handleIniciar(idSolicitud: number) {
     try {
@@ -294,7 +308,8 @@ function TecnicoDashboard() {
                       <div className="mt-4 grid gap-2 text-sm text-gray-600">
                         <p className="flex items-center gap-2">
                           <Wrench className="h-4 w-4 text-gray-400" />
-                          Servicio ID {solicitud.servicio_id_servicio}
+                          {serviciosPorId.get(solicitud.servicio_id_servicio) ||
+                            `Servicio ID ${solicitud.servicio_id_servicio}`}
                         </p>
 
                         <p className="flex items-center gap-2">
