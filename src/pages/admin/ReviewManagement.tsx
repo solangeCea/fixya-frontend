@@ -1,227 +1,164 @@
-import {
-  Star,
-  Trash2,
-  AlertTriangle,
-} from "lucide-react";
-
+import { useEffect, useState } from "react";
+import { Star, AlertTriangle, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
-interface Review {
-  id: number;
-  author: string;
-  technician: string;
-  rating: number;
-  comment: string;
-  date: string;
-  jobType: string;
-  flaggedReason: string | null;
-}
-
-const reviews: Review[] = [
-  {
-    id: 1,
-    author: "María González",
-    technician: "Carlos Mendoza",
-    rating: 5,
-    comment:
-      "Excelente profesional, muy puntual y dejó todo impecable.",
-
-    date: "10 Abr 2026",
-
-    jobType: "Reparación de fuga",
-
-    flaggedReason: null,
-  },
-
-  {
-    id: 2,
-    author: "Cliente Anónimo",
-    technician: "Roberto Silva",
-    rating: 1,
-    comment:
-      "Pésimo servicio, el tipo no sabe nada y encima me cobró caro.",
-
-    date: "9 Abr 2026",
-
-    jobType: "Instalación eléctrica",
-
-    flaggedReason:
-      "Lenguaje inapropiado",
-  },
-];
+import { getReviews } from "../../services/reviewService";
+import type { Review } from "../../services/reviewService";
 
 export default function ReviewManagement() {
-  const flaggedReviews = reviews.filter(
-    (r) => r.flaggedReason
-  );
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function cargarResenas() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getReviews();
+      setReviews(data);
+    } catch (error) {
+      console.error("Error cargando reseñas:", error);
+      setError("No se pudieron cargar las reseñas reales.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    cargarResenas();
+  }, []);
+
+  const totalResenas = reviews.length;
+
+  const resenasActivas = reviews.filter(
+    (review) => review.resena_activa === "S"
+  ).length;
+
+  const resenasReportadas = reviews.filter(
+    (review) => review.resena_reportada === "S"
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <RefreshCw className="mx-auto mb-3 animate-spin text-blue-600" />
+          <p className="font-medium text-gray-700">Cargando reseñas reales...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <p className="font-semibold">{error}</p>
+
+          <button
+            onClick={cargarResenas}
+            className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
+      <h1 className="text-3xl font-bold text-gray-900">
+        Gestión de Reseñas
+      </h1>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-
-          <p className="text-sm text-gray-600 mb-1">
-            Total Reseñas
-          </p>
-
-          <p className="text-3xl font-bold text-gray-900">
-            {reviews.length}
-          </p>
-
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <p className="mb-1 text-sm text-gray-600">Total Reseñas</p>
+          <p className="text-3xl font-bold text-gray-900">{totalResenas}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-
-          <p className="text-sm text-gray-600 mb-1">
-            Reseñas Activas
-          </p>
-
-          <p className="text-3xl font-bold text-green-600">
-            {
-              reviews.filter(
-                (r) => !r.flaggedReason
-              ).length
-            }
-          </p>
-
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <p className="mb-1 text-sm text-gray-600">Reseñas Activas</p>
+          <p className="text-3xl font-bold text-green-600">{resenasActivas}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-
-          <p className="text-sm text-gray-600 mb-1">
-            Reportadas
-          </p>
-
-          <p className="text-3xl font-bold text-red-600">
-            {flaggedReviews.length}
-          </p>
-
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <p className="mb-1 text-sm text-gray-600">Reportadas</p>
+          <p className="text-3xl font-bold text-red-600">{resenasReportadas}</p>
         </div>
-
       </div>
 
-      {/* REVIEWS */}
-      <div className="bg-white rounded-2xl shadow-sm">
-
-        <div className="p-6 border-b border-gray-200">
-
+      <div className="rounded-2xl bg-white shadow-sm">
+        <div className="border-b border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900">
-            Gestión de Reseñas
+            Reseñas del Sistema
           </h2>
-
         </div>
 
-        <div className="divide-y divide-gray-200">
+        {reviews.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            No hay reseñas registradas.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {reviews.map((review, index) => (
+              <motion.div
+                key={review.id_resena}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={`p-6 ${
+                  review.resena_reportada === "S" ? "bg-red-50" : ""
+                }`}
+              >
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <div className="mb-2 flex items-center gap-3">
+                      <h3 className="font-bold text-gray-900">
+                        Reseña #{review.id_resena}
+                      </h3>
 
-          {reviews.map((review, index) => (
-            <motion.div
-              key={review.id}
-              initial={{
-                opacity: 0,
-                y: 20,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              transition={{
-                delay: index * 0.05,
-              }}
-              className={`p-6 ${
-                review.flaggedReason
-                  ? "bg-red-50"
-                  : ""
-              }`}
-            >
+                      {review.resena_reportada === "S" && (
+                        <span className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                          <AlertTriangle size={14} />
+                          Reportada
+                        </span>
+                      )}
+                    </div>
 
-              <div className="flex items-start justify-between mb-3">
+                    <p className="text-sm text-gray-600">
+                      Solicitud: {review.solicitud_id_solicitud}
+                    </p>
 
-                <div>
-
-                  <div className="flex items-center gap-3 mb-2">
-
-                    <h3 className="font-bold text-gray-900">
-                      {review.author}
-                    </h3>
-
-                    {review.flaggedReason && (
-                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1">
-
-                        <AlertTriangle
-                          size={14}
-                        />
-
-                        {
-                          review.flaggedReason
-                        }
-
-                      </span>
-                    )}
-
+                    <p className="text-sm text-gray-500">
+                      Estado:{" "}
+                      {review.resena_activa === "S" ? "Activa" : "Inactiva"}
+                    </p>
                   </div>
 
-                  <p className="text-sm text-gray-600">
-
-                    Técnico:{" "}
-
-                    <span className="font-medium">
-                      {review.technician}
-                    </span>
-
-                  </p>
-
-                  <p className="text-sm text-gray-500">
-
-                    {review.jobType} •{" "}
-                    {review.date}
-
-                  </p>
-
-                </div>
-
-                <div className="flex gap-0.5">
-
-                  {[...Array(5)].map(
-                    (_, i) => (
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
                         size={16}
                         className={
-                          i <
-                          review.rating
-                            ? "text-yellow-500 fill-yellow-500"
+                          i < review.calificacion
+                            ? "fill-yellow-500 text-yellow-500"
                             : "text-gray-300"
                         }
                       />
-                    )
-                  )}
-
+                    ))}
+                  </div>
                 </div>
 
-              </div>
-
-              <p className="text-gray-700 mb-4">
-                {review.comment}
-              </p>
-
-              <button className="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-1">
-
-                <Trash2 size={16} />
-
-                Eliminar
-
-              </button>
-
-            </motion.div>
-          ))}
-
-        </div>
-
+                <p className="mb-4 text-gray-700">{review.comentario}</p>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
-
     </div>
   );
 }
