@@ -38,6 +38,13 @@ function Navbar() {
           </Link>
 
           <Link
+            to="/tecnicos"
+            className="text-gray-700 hover:text-blue-600 font-medium"
+          >
+            Técnicos
+          </Link>
+
+          <Link
             to="/login"
             className="text-gray-700 hover:text-blue-600 font-medium"
           >

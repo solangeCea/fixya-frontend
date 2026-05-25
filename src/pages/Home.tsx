@@ -34,9 +34,12 @@ function Home() {
                 Solicitar Servicio
               </Link>
 
-              <button className="border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-100">
+              <Link
+                to="/tecnicos"
+                className="border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-100"
+              >
                 Ver Técnicos
-              </button>
+              </Link>
 
             </div>
           </div>

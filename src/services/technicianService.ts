@@ -9,6 +9,26 @@ export interface Tecnico {
   tecnico_verificado: boolean;
 }
 
+export interface TecnicoPublicProfile extends Tecnico {
+  nombre_completo: string;
+  correo: string | null;
+  telefono: string | null;
+}
+
+export async function getPublicTechnicianProfiles(): Promise<
+  TecnicoPublicProfile[]
+> {
+  const response = await fetch(`${API_URL}/tecnicos/publicos/perfiles`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener perfiles de tecnicos");
+  }
+
+  return response.json();
+}
+
 export async function getTechnicians(): Promise<Tecnico[]> {
   const token = getToken();
 

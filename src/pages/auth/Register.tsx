@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 
 import { createUser } from "../../services/userService";
 import type { UsuarioCreate } from "../../services/userService";
-import { getComunas } from "../../services/catalogService";
-import type { Comuna } from "../../services/catalogService";
+import { getComunas, getRegiones } from "../../services/catalogService";
+import type { Comuna, Region } from "../../services/catalogService";
 import { getServicios } from "../../services/catalogService";
 import type { Servicio } from "../../services/catalogService";
 import { login } from "../../services/authService";
@@ -28,6 +28,7 @@ interface RegisterForm {
   telefono: string;
   contrasena: string;
   confirmarContrasena: string;
+  region_id_region: number;
   comuna_id_comuna: number;
   descripcion_perfil: string;
   experiencia_anios: number;
@@ -44,6 +45,7 @@ const initialForm: RegisterForm = {
   telefono: "",
   contrasena: "",
   confirmarContrasena: "",
+  region_id_region: 0,
   comuna_id_comuna: 0,
   descripcion_perfil: "",
   experiencia_anios: 0,
@@ -54,6 +56,7 @@ const initialForm: RegisterForm = {
 function Register() {
   const [userType, setUserType] = useState<UserType>("cliente");
   const [form, setForm] = useState<RegisterForm>(initialForm);
+  const [regiones, setRegiones] = useState<Region[]>([]);
   const [comunas, setComunas] = useState<Comuna[]>([]);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [documento, setDocumento] = useState<File | null>(null);
@@ -69,7 +72,8 @@ function Register() {
         setLoadingComunas(true);
         setError("");
 
-        const [comunasData, serviciosData] = await Promise.all([
+        const [regionesData, comunasData, serviciosData] = await Promise.all([
+          getRegiones(),
           getComunas(),
           getServicios(),
         ]);
@@ -78,12 +82,22 @@ function Register() {
           (servicio) => servicio.estado_servicio
         );
 
+        const primeraRegion = regionesData[0]?.id_region || 0;
+        const comunasRegion = comunasData.filter(
+          (comuna) => comuna.region_id_region === primeraRegion
+        );
+
+        setRegiones(regionesData);
         setComunas(comunasData);
         setServicios(serviciosActivos);
         setForm((prev) => ({
           ...prev,
+          region_id_region: prev.region_id_region || primeraRegion,
           comuna_id_comuna:
-            prev.comuna_id_comuna || comunasData[0]?.id_comuna || 0,
+            prev.comuna_id_comuna ||
+            comunasRegion[0]?.id_comuna ||
+            comunasData[0]?.id_comuna ||
+            0,
           servicio_id_servicio:
             prev.servicio_id_servicio ||
             serviciosActivos[0]?.id_servicio ||
@@ -108,12 +122,30 @@ function Register() {
       ...prev,
       [name]:
         name === "comuna_id_comuna" ||
+        name === "region_id_region" ||
         name === "experiencia_anios" ||
         name === "servicio_id_servicio"
           ? Number(value)
           : value,
     }));
+
+    if (name === "region_id_region") {
+      const regionId = Number(value);
+      const primeraComunaRegion = comunas.find(
+        (comuna) => comuna.region_id_region === regionId
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        region_id_region: regionId,
+        comuna_id_comuna: primeraComunaRegion?.id_comuna || 0,
+      }));
+    }
   }
+
+  const comunasFiltradas = comunas.filter(
+    (comuna) => comuna.region_id_region === form.region_id_region
+  );
 
   function validarFormulario() {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -441,28 +473,54 @@ function Register() {
               />
             </div>
 
-            <div>
-              <label className="mb-2 block font-medium text-gray-700">
-                Comuna
-              </label>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block font-medium text-gray-700">
+                  Región
+                </label>
 
-              <select
-                name="comuna_id_comuna"
-                value={form.comuna_id_comuna}
-                onChange={handleChange}
-                required
-                disabled={loadingComunas || comunas.length === 0}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                {comunas.length === 0 && (
-                  <option value={0}>Sin comunas disponibles</option>
-                )}
-                {comunas.map((comuna) => (
-                  <option key={comuna.id_comuna} value={comuna.id_comuna}>
-                    {comuna.nombre_comuna}
-                  </option>
-                ))}
-              </select>
+                <select
+                  name="region_id_region"
+                  value={form.region_id_region}
+                  onChange={handleChange}
+                  required
+                  disabled={loadingComunas || regiones.length === 0}
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  {regiones.length === 0 && (
+                    <option value={0}>Sin regiones disponibles</option>
+                  )}
+                  {regiones.map((region) => (
+                    <option key={region.id_region} value={region.id_region}>
+                      {region.nombre_region}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block font-medium text-gray-700">
+                  Comuna
+                </label>
+
+                <select
+                  name="comuna_id_comuna"
+                  value={form.comuna_id_comuna}
+                  onChange={handleChange}
+                  required
+                  disabled={loadingComunas || comunasFiltradas.length === 0}
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  {comunasFiltradas.length === 0 && (
+                    <option value={0}>Sin comunas para la región</option>
+                  )}
+                  {comunasFiltradas.map((comuna) => (
+                    <option key={comuna.id_comuna} value={comuna.id_comuna}>
+                      {comuna.nombre_comuna}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {userType === "tecnico" && (
@@ -593,7 +651,7 @@ function Register() {
 
             <button
               type="submit"
-              disabled={loading || loadingComunas || comunas.length === 0}
+              disabled={loading || loadingComunas || comunasFiltradas.length === 0}
               className="w-full rounded-xl bg-blue-600 py-4 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               {loading
