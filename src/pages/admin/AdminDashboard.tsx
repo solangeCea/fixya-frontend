@@ -1,51 +1,96 @@
+import { useEffect, useState } from "react";
 import {
   Users,
   UserCheck,
+  Clock,
   AlertCircle,
-  TrendingUp,
   ArrowRight,
+  RefreshCw,
 } from "lucide-react";
-
-import { motion } from "framer-motion";
-
 import { Link } from "react-router-dom";
 
-export default function AdminDashboard() {
+import { getAdminDashboard } from "../../services/dashboardService";
+import type { AdminDashboardData } from "../../services/dashboardService";
+
+function AdminDashboard() {
+  const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function cargarDashboard() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getAdminDashboard();
+      setDashboard(data);
+    } catch (error) {
+      console.error("Error cargando dashboard:", error);
+      setError("No se pudieron cargar las métricas del dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    cargarDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <RefreshCw className="mx-auto mb-3 animate-spin text-blue-600" />
+          <p className="font-medium text-gray-700">Cargando métricas reales...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !dashboard) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <p className="font-semibold">{error}</p>
+          <button
+            onClick={cargarDashboard}
+            className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const stats = [
     {
       label: "Usuarios Activos",
-      value: "2,847",
-      change: "+12% vs mes anterior",
+      value: dashboard.total_usuarios,
+      description: "Usuarios registrados",
       icon: Users,
-      color: "bg-blue-100 text-blue-600",
-      trend: "up",
+      color: "bg-blue-100 text-blue-700",
     },
-
     {
       label: "Técnicos Verificados",
-      value: "342",
-      change: "+28 este mes",
+      value: dashboard.tecnicos_verificados,
+      description: `${dashboard.total_tecnicos} técnicos en total`,
       icon: UserCheck,
-      color: "bg-green-100 text-green-600",
-      trend: "up",
+      color: "bg-green-100 text-green-700",
     },
-
     {
       label: "Técnicos Pendientes",
-      value: "12",
-      change: "Requieren revisión",
-      icon: AlertCircle,
-      color: "bg-yellow-100 text-yellow-600",
-      trend: "neutral",
+      value: dashboard.tecnicos_pendientes,
+      description: "Requieren revisión",
+      icon: Clock,
+      color: "bg-yellow-100 text-yellow-700",
     },
-
     {
       label: "Reseñas Reportadas",
-      value: "5",
-      change: "Pendientes moderación",
+      value: dashboard.resenas_reportadas,
+      description: "Pendientes moderación",
       icon: AlertCircle,
-      color: "bg-red-100 text-red-600",
-      trend: "neutral",
+      color: "bg-red-100 text-red-700",
     },
   ];
 
@@ -54,239 +99,131 @@ export default function AdminDashboard() {
       title: "Aprobar Técnicos",
       description: "Revisa y aprueba solicitudes pendientes",
       link: "/admin/tecnicos",
-      count: 12,
-      color: "bg-blue-50 border-blue-200 hover:bg-blue-100",
+      count: dashboard.tecnicos_pendientes,
+      color: "border-blue-200 bg-blue-50",
     },
-
     {
       title: "Revisar Reseñas",
       description: "Modera reseñas reportadas",
       link: "/admin/resenas",
-      count: 5,
-      color: "bg-red-50 border-red-200 hover:bg-red-100",
+      count: dashboard.resenas_reportadas,
+      color: "border-red-200 bg-red-50",
     },
-
     {
       title: "Ver Usuarios",
       description: "Gestiona usuarios de la plataforma",
       link: "/admin/usuarios",
-      count: 2847,
-      color: "bg-purple-50 border-purple-200 hover:bg-purple-100",
+      count: dashboard.total_usuarios,
+      color: "border-purple-200 bg-purple-50",
     },
   ];
-
-  const recentActivity = [
-    {
-      action: "Nuevo registro de técnico",
-      user: "Luis Fernández",
-      time: "Hace 5 min",
-      type: "new",
-    },
-
-    {
-      action: "Técnico aprobado",
-      user: "Carlos Mendoza",
-      time: "Hace 15 min",
-      type: "approved",
-    },
-
-    {
-      action: "Reseña reportada",
-      user: "María González",
-      time: "Hace 1 hora",
-      type: "flagged",
-    },
-
-    {
-      action: "Nuevo usuario registrado",
-      user: "Ana Torres",
-      time: "Hace 2 horas",
-      type: "new",
-    },
-
-    {
-      action: "Técnico rechazado",
-      user: "Pedro Silva",
-      time: "Hace 3 horas",
-      type: "rejected",
-    },
-  ];
-
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case "new":
-        return "bg-blue-100 text-blue-600";
-
-      case "approved":
-        return "bg-green-100 text-green-600";
-
-      case "flagged":
-        return "bg-red-100 text-red-600";
-
-      case "rejected":
-        return "bg-gray-100 text-gray-600";
-
-      default:
-        return "bg-gray-100 text-gray-600";
-    }
-  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Resumen</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Métricas reales obtenidas desde el backend.
+          </p>
+        </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-        {stats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-2xl shadow-sm p-6"
-          >
-
-            <div className="flex items-start justify-between mb-4">
-
-              <div className={`${stat.color} p-3 rounded-xl`}>
-                <stat.icon size={24} />
-              </div>
-
-              {stat.trend === "up" && (
-                <TrendingUp
-                  className="text-green-600"
-                  size={20}
-                />
-              )}
-
-            </div>
-
-            <p className="text-3xl font-bold text-gray-900 mb-1">
-              {stat.value}
-            </p>
-
-            <p className="text-sm font-medium text-gray-600 mb-1">
-              {stat.label}
-            </p>
-
-            <p className="text-xs text-gray-500">
-              {stat.change}
-            </p>
-
-          </motion.div>
-        ))}
-
+        <button
+          onClick={cargarDashboard}
+          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        >
+          <RefreshCw size={16} />
+          Actualizar
+        </button>
       </div>
 
-      {/* QUICK ACTIONS */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <div className={`rounded-xl p-3 ${stat.color}`}>
+                <stat.icon size={24} />
+              </div>
+            </div>
 
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+            <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+            <p className="mt-1 font-medium text-gray-700">{stat.label}</p>
+            <p className="mt-1 text-sm text-gray-500">{stat.description}</p>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-bold text-gray-900">
           Acciones Rápidas
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {quickActions.map((action) => (
             <Link
               key={action.title}
               to={action.link}
-              className={`${action.color} border-2 rounded-2xl p-6 transition-all group`}
+              className={`rounded-2xl border p-6 transition hover:-translate-y-1 hover:shadow-md ${action.color}`}
             >
-
-              <div className="flex items-start justify-between mb-3">
-
-                <h3 className="font-bold text-gray-900 text-lg">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">
                   {action.title}
                 </h3>
-
-                <ArrowRight
-                  className="text-gray-400 group-hover:text-gray-900 transition-colors"
-                  size={20}
-                />
-
+                <ArrowRight className="text-gray-500" />
               </div>
 
-              <p className="text-gray-600 text-sm mb-3">
+              <p className="mb-4 text-sm text-gray-600">
                 {action.description}
               </p>
 
-              <div className="inline-block bg-white px-3 py-1 rounded-lg">
-
-                <span className="font-bold text-gray-900">
-                  {action.count}
-                </span>
-
-              </div>
-
+              <span className="inline-flex rounded-lg bg-white px-3 py-1 text-sm font-bold text-gray-900">
+                {action.count}
+              </span>
             </Link>
           ))}
-
         </div>
+      </div>
 
-      </motion.div>
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-xl font-bold text-gray-900">
+          Estado del Sistema
+        </h2>
 
-      {/* RECENT ACTIVITY */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="bg-white rounded-2xl shadow-sm"
-      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Solicitudes activas</p>
+            <p className="text-2xl font-bold text-blue-700">
+              {dashboard.solicitudes_activas}
+            </p>
+          </div>
 
-        <div className="p-6 border-b border-gray-200">
+          <div className="rounded-xl bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Solicitudes finalizadas</p>
+            <p className="text-2xl font-bold text-green-700">
+              {dashboard.solicitudes_finalizadas}
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-gray-900">
-            Actividad Reciente
-          </h2>
+          <div className="rounded-xl bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Reseñas activas</p>
+            <p className="text-2xl font-bold text-green-700">
+              {dashboard.resenas_activas}
+            </p>
+          </div>
 
+          <div className="rounded-xl bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Promedio calificaciones</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {dashboard.promedio_calificaciones}
+            </p>
+          </div>
         </div>
-
-        <div className="divide-y divide-gray-200">
-
-          {recentActivity.map((activity, index) => (
-            <div
-              key={index}
-              className="p-6 hover:bg-gray-50 transition-colors"
-            >
-
-              <div className="flex items-start gap-4">
-
-                <div
-                  className={`${getActivityColor(activity.type)} w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0`}
-                >
-                  <div className="w-2 h-2 rounded-full bg-current"></div>
-                </div>
-
-                <div className="flex-1">
-
-                  <p className="font-semibold text-gray-900">
-                    {activity.action}
-                  </p>
-
-                  <p className="text-sm text-gray-600">
-                    {activity.user}
-                  </p>
-
-                </div>
-
-                <span className="text-sm text-gray-500">
-                  {activity.time}
-                </span>
-
-              </div>
-
-            </div>
-          ))}
-
-        </div>
-
-      </motion.div>
-
+      </div>
     </div>
   );
 }
+
+export default AdminDashboard;
