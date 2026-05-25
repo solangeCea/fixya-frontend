@@ -5,6 +5,7 @@ import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 
 import TecnicoDashboard from "../pages/tecnico/TecnicoDashboard";
+import ClienteDashboard from "../pages/cliente/ClienteDashboard";
 
 import AdminLayout from "../layouts/AdminLayout";
 import AdminDashboard from "../pages/admin/AdminDashboard";
@@ -12,8 +13,6 @@ import TechnicianManagement from "../pages/admin/TechnicianManagement";
 import UserManagement from "../pages/admin/UserManagement";
 import ReviewManagement from "../pages/admin/ReviewManagement";
 import RequestManagement from "../pages/admin/RequestManagement";
-
-import ClienteDashboard from "../pages/cliente/ClienteDashboard";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -35,17 +34,16 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        
+
         {/* RUTA CLIENTE */}
-<Route
-  path="/cliente/dashboard"
-  element={
-    <ProtectedRoute allowedRoles={["CLIENTE"]}>
-      <ClienteDashboard />
-      <Route path="solicitudes" element={<RequestManagement />} />
-    </ProtectedRoute>
-  }
-/>       
+        <Route
+          path="/cliente/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["CLIENTE"]}>
+              <ClienteDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         {/* RUTAS ADMIN */}
         <Route
@@ -57,6 +55,7 @@ function AppRoutes() {
           }
         >
           <Route path="panel" element={<AdminDashboard />} />
+          <Route path="solicitudes" element={<RequestManagement />} />
           <Route path="tecnicos" element={<TechnicianManagement />} />
           <Route path="usuarios" element={<UserManagement />} />
           <Route path="resenas" element={<ReviewManagement />} />
