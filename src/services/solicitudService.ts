@@ -102,6 +102,30 @@ export async function getSolicitudesTecnico(
   return response.json();
 }
 
+export async function asignarTecnico(
+  idSolicitud: number,
+  rutTecnico: string
+) {
+  const response = await fetch(
+    `${API_URL}/solicitudes/${idSolicitud}/asignar-tecnico`,
+    {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        tecnico_usuario_rut: rutTecnico,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Error asignando técnico:", response.status, errorText);
+    throw new Error("Error al asignar técnico");
+  }
+
+  return response.json();
+}
+
 export async function iniciarSolicitud(idSolicitud: number) {
   const response = await fetch(
     `${API_URL}/solicitudes/${idSolicitud}/iniciar`,
