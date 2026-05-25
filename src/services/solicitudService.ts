@@ -139,3 +139,21 @@ export async function finalizarSolicitud(
 
   return response.json();
 }
+export async function asignarTecnico(
+  idSolicitud: number,
+  rutTecnico: string
+) {
+  const response = await fetch(
+    `${API_URL}/solicitudes/${idSolicitud}/asignar-tecnico/${rutTecnico}`,
+    {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Error al asignar técnico");
+  }
+
+  return response.json();
+}

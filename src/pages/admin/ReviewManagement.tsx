@@ -1,69 +1,131 @@
 import {
-  Star,
-  Trash2,
   AlertTriangle,
+  CheckCircle,
+  Eye,
+  RefreshCw,
+  Star,
+  XCircle,
 } from "lucide-react";
 
 import { motion } from "framer-motion";
 
-interface Review {
-  id: number;
-  author: string;
-  technician: string;
-  rating: number;
-  comment: string;
-  date: string;
-  jobType: string;
-  flaggedReason: string | null;
-}
+import { useEffect, useMemo, useState } from "react";
 
-const reviews: Review[] = [
-  {
-    id: 1,
-    author: "María González",
-    technician: "Carlos Mendoza",
-    rating: 5,
-    comment:
-      "Excelente profesional, muy puntual y dejó todo impecable.",
+import {
+  getReportedReviews,
+  getReviews,
+  resolveReport,
+} from "../../services/reviewService";
 
-    date: "10 Abr 2026",
+import type {
+  Review,
+} from "../../services/reviewService";
 
-    jobType: "Reparación de fuga",
+function ReviewManagement() {
+  const [reviews, setReviews] = useState<Review[]>([]);
 
-    flaggedReason: null,
-  },
+  const [loading, setLoading] = useState(true);
 
-  {
-    id: 2,
-    author: "Cliente Anónimo",
-    technician: "Roberto Silva",
-    rating: 1,
-    comment:
-      "Pésimo servicio, el tipo no sabe nada y encima me cobró caro.",
+  const [error, setError] = useState("");
 
-    date: "9 Abr 2026",
+  const [success, setSuccess] = useState("");
 
-    jobType: "Instalación eléctrica",
+  const [resolving, setResolving] =
+    useState<number | null>(null);
 
-    flaggedReason:
-      "Lenguaje inapropiado",
-  },
-];
+  async function cargarResenas() {
+    try {
+      setLoading(true);
 
-export default function ReviewManagement() {
-  const flaggedReviews = reviews.filter(
-    (r) => r.flaggedReason
-  );
+      setError("");
+
+      const data = await getReviews();
+
+      setReviews(data);
+    } catch {
+      setError(
+        "No se pudieron cargar las reseñas."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    cargarResenas();
+  }, []);
+
+  const flaggedReviews = useMemo(() => {
+    return reviews.filter(
+      (review) =>
+        review.resena_reportada === "S" &&
+        review.reporte_resuelto !== "S"
+    );
+  }, [reviews]);
+
+  async function handleResolver(
+    idResena: number,
+    aprobar: boolean
+  ) {
+    try {
+      setResolving(idResena);
+
+      setError("");
+
+      setSuccess("");
+
+      await resolveReport(idResena, {
+        aprobar_publicacion: aprobar,
+      });
+
+      setSuccess(
+        aprobar
+          ? "Reseña aprobada correctamente."
+          : "Reseña ocultada correctamente."
+      );
+
+      await cargarResenas();
+    } catch {
+      setError(
+        "No se pudo resolver el reporte."
+      );
+    } finally {
+      setResolving(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
 
+      <div className="flex items-center justify-between">
+
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestión de Reseñas
+          </h1>
+
+          <p className="mt-2 text-gray-600">
+            Supervisa comentarios y reportes de clientes.
+          </p>
+        </div>
+
+        <button
+          onClick={cargarResenas}
+          className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+        >
+          <RefreshCw size={16} />
+
+          Actualizar
+        </button>
+
+      </div>
+
       {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
 
-        <div className="bg-white rounded-2xl shadow-sm p-6">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
 
-          <p className="text-sm text-gray-600 mb-1">
+          <p className="mb-1 text-sm text-gray-600">
             Total Reseñas
           </p>
 
@@ -73,25 +135,26 @@ export default function ReviewManagement() {
 
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
 
-          <p className="text-sm text-gray-600 mb-1">
+          <p className="mb-1 text-sm text-gray-600">
             Reseñas Activas
           </p>
 
           <p className="text-3xl font-bold text-green-600">
             {
               reviews.filter(
-                (r) => !r.flaggedReason
+                (r) =>
+                  r.resena_activa === "S"
               ).length
             }
           </p>
 
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
 
-          <p className="text-sm text-gray-600 mb-1">
+          <p className="mb-1 text-sm text-gray-600">
             Reportadas
           </p>
 
@@ -103,125 +166,232 @@ export default function ReviewManagement() {
 
       </div>
 
-      {/* REVIEWS */}
-      <div className="bg-white rounded-2xl shadow-sm">
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+          {error}
+        </div>
+      )}
 
-        <div className="p-6 border-b border-gray-200">
+      {success && (
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
+          {success}
+        </div>
+      )}
+
+      {/* REVIEWS */}
+      <div className="rounded-2xl bg-white shadow-sm">
+
+        <div className="border-b border-gray-200 p-6">
 
           <h2 className="text-xl font-bold text-gray-900">
-            Gestión de Reseñas
+            Moderación de Reseñas
           </h2>
 
         </div>
 
-        <div className="divide-y divide-gray-200">
+        {loading ? (
+          <div className="p-8 text-center text-gray-600">
+            Cargando reseñas...
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="p-8 text-center text-gray-600">
+            No existen reseñas registradas.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
 
-          {reviews.map((review, index) => (
-            <motion.div
-              key={review.id}
-              initial={{
-                opacity: 0,
-                y: 20,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              transition={{
-                delay: index * 0.05,
-              }}
-              className={`p-6 ${
-                review.flaggedReason
-                  ? "bg-red-50"
-                  : ""
-              }`}
-            >
+            {reviews.map(
+              (review, index) => (
+                <motion.div
+                  key={review.id_resena}
+                  initial={{
+                    opacity: 0,
+                    y: 20,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  transition={{
+                    delay:
+                      index * 0.03,
+                  }}
+                  className={`p-6 ${
+                    review.resena_reportada ===
+                      "S" &&
+                    review.reporte_resuelto !==
+                      "S"
+                      ? "bg-red-50"
+                      : ""
+                  }`}
+                >
 
-              <div className="flex items-start justify-between mb-3">
+                  <div className="mb-3 flex items-start justify-between">
 
-                <div>
+                    <div>
 
-                  <div className="flex items-center gap-3 mb-2">
+                      <div className="mb-2 flex items-center gap-3">
 
-                    <h3 className="font-bold text-gray-900">
-                      {review.author}
-                    </h3>
+                        <h3 className="font-bold text-gray-900">
+                          Cliente:
+                          {" "}
+                          {
+                            review.usuario_rut
+                          }
+                        </h3>
 
-                    {review.flaggedReason && (
-                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1">
+                        {review.resena_reportada ===
+                          "S" &&
+                          review.reporte_resuelto !==
+                            "S" && (
+                            <span className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
 
-                        <AlertTriangle
-                          size={14}
-                        />
+                              <AlertTriangle
+                                size={14}
+                              />
 
+                              Reportada
+
+                            </span>
+                          )}
+
+                      </div>
+
+                      <p className="text-sm text-gray-600">
+                        Solicitud:
+                        {" "}
+                        #
                         {
-                          review.flaggedReason
+                          review.solicitud_id_solicitud
                         }
+                      </p>
 
-                      </span>
-                    )}
+                      <p className="text-sm text-gray-500">
+                        {
+                          new Date(
+                            review.fecha_resena
+                          ).toLocaleDateString()
+                        }
+                      </p>
+
+                    </div>
+
+                    <div className="flex gap-0.5">
+
+                      {[...Array(5)].map(
+                        (_, i) => (
+                          <Star
+                            key={i}
+                            size={18}
+                            className={
+                              i <
+                              Number(
+                                review.calificacion
+                              )
+                                ? "fill-yellow-500 text-yellow-500"
+                                : "text-gray-300"
+                            }
+                          />
+                        )
+                      )}
+
+                    </div>
 
                   </div>
 
-                  <p className="text-sm text-gray-600">
-
-                    Técnico:{" "}
-
-                    <span className="font-medium">
-                      {review.technician}
-                    </span>
-
+                  <p className="mb-4 text-gray-700">
+                    {review.comentario}
                   </p>
 
-                  <p className="text-sm text-gray-500">
+                  {review.motivo_reporte && (
+                    <div className="mb-4 rounded-xl border border-red-200 bg-red-100 p-3 text-sm text-red-700">
 
-                    {review.jobType} •{" "}
-                    {review.date}
+                      <strong>
+                        Motivo reporte:
+                      </strong>
 
-                  </p>
+                      {" "}
+                      {
+                        review.motivo_reporte
+                      }
 
-                </div>
-
-                <div className="flex gap-0.5">
-
-                  {[...Array(5)].map(
-                    (_, i) => (
-                      <Star
-                        key={i}
-                        size={16}
-                        className={
-                          i <
-                          review.rating
-                            ? "text-yellow-500 fill-yellow-500"
-                            : "text-gray-300"
-                        }
-                      />
-                    )
+                    </div>
                   )}
 
-                </div>
+                  <div className="flex flex-wrap gap-3">
 
-              </div>
+                    {review.resena_reportada ===
+                      "S" &&
+                      review.reporte_resuelto !==
+                        "S" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleResolver(
+                                review.id_resena,
+                                true
+                              )
+                            }
+                            disabled={
+                              resolving ===
+                              review.id_resena
+                            }
+                            className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
+                          >
 
-              <p className="text-gray-700 mb-4">
-                {review.comment}
-              </p>
+                            <CheckCircle
+                              size={16}
+                            />
 
-              <button className="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-1">
+                            Aprobar
 
-                <Trash2 size={16} />
+                          </button>
 
-                Eliminar
+                          <button
+                            onClick={() =>
+                              handleResolver(
+                                review.id_resena,
+                                false
+                              )
+                            }
+                            disabled={
+                              resolving ===
+                              review.id_resena
+                            }
+                            className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
+                          >
 
-              </button>
+                            <XCircle
+                              size={16}
+                            />
 
-            </motion.div>
-          ))}
+                            Ocultar
 
-        </div>
+                          </button>
+                        </>
+                      )}
+
+                    <button className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-200">
+
+                      <Eye size={16} />
+
+                      Ver detalle
+
+                    </button>
+
+                  </div>
+
+                </motion.div>
+              )
+            )}
+
+          </div>
+        )}
 
       </div>
 
     </div>
   );
 }
+
+export default ReviewManagement;
