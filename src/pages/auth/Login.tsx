@@ -1,214 +1,242 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Wrench, User, Shield, Briefcase } from "lucide-react";
+import { Wrench, User, Shield, Briefcase, AlertCircle, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 
-import {
-  login,
-  obtenerUsuarioActual,
-} from "../../services/authService";
-
+import { login, obtenerUsuarioActual } from "../../services/authService";
 import { saveToken } from "../../services/token";
-
 import { useAuth } from "../../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
-
   const { setUsuario } = useAuth();
 
   const [selectedRole, setSelectedRole] = useState<
     "cliente" | "tecnico" | "admin" | null
   >(null);
-
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    role?: string;
+    correo?: string;
+    contrasena?: string;
+  }>({});
 
   const roles = [
     {
       type: "cliente" as const,
       title: "Cliente",
-      description: "Busca y contrata técnicos para tu hogar",
+      description: "Solicita servicios y revisa cotizaciones.",
       icon: User,
-      color: "bg-blue-100 text-blue-600 hover:bg-blue-200",
+      color: "bg-cyan-50 text-cyan-700",
     },
     {
       type: "tecnico" as const,
-      title: "Técnico",
-      description: "Ofrece tus servicios profesionales",
+      title: "Tecnico",
+      description: "Acepta trabajos y gestiona servicios.",
       icon: Briefcase,
-      color: "bg-green-100 text-green-600 hover:bg-green-200",
+      color: "bg-emerald-50 text-emerald-700",
     },
     {
       type: "admin" as const,
-      title: "Administrador",
-      description: "Gestiona la plataforma",
+      title: "Admin",
+      description: "Modera y supervisa la plataforma.",
       icon: Shield,
-      color: "bg-purple-100 text-purple-600 hover:bg-purple-200",
+      color: "bg-teal-50 text-teal-700",
     },
   ];
 
-  const handleLogin = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
-
+  async function handleLogin(event: React.FormEvent) {
+    event.preventDefault();
     setError("");
+    const nextErrors: typeof fieldErrors = {};
+
+    if (!selectedRole) nextErrors.role = "Selecciona el rol con el que quieres ingresar.";
+    if (!correo.trim()) nextErrors.correo = "Ingresa tu correo electronico.";
+    if (correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+      nextErrors.correo = "Ingresa un correo valido.";
+    }
+    if (!contrasena.trim()) nextErrors.contrasena = "Ingresa tu contrasena.";
+
+    setFieldErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) return;
 
     try {
-      const response = await login(
-        correo,
-        contrasena
-      );
-
+      setLoading(true);
+      const response = await login(correo, contrasena);
       saveToken(response.access_token);
 
-      const usuario =
-        await obtenerUsuarioActual(
-          response.access_token
-        );
-
+      const usuario = await obtenerUsuarioActual(response.access_token);
       setUsuario(usuario);
 
-      if (usuario.tipo_usuario === "CLIENTE") {
-        navigate("/cliente/dashboard");
-        return;
-      }
-
-      if (usuario.tipo_usuario === "TECNICO") {
-        navigate("/tecnico/dashboard");
-        return;
-      }
-
-      if (usuario.tipo_usuario === "ADMIN") {
-        navigate("/admin/panel");
-        return;
-      }
+      if (usuario.tipo_usuario === "CLIENTE") navigate("/cliente/dashboard");
+      if (usuario.tipo_usuario === "TECNICO") navigate("/tecnico/dashboard");
+      if (usuario.tipo_usuario === "ADMIN") navigate("/admin/panel");
     } catch (error) {
-      setError("Correo o contraseña incorrectos");
+      setError("No pudimos iniciar sesion con esas credenciales.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-6 py-12">
+    <div className="fixya-shell flex min-h-screen items-center justify-center px-6 py-12">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 max-w-4xl w-full"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl shadow-slate-950/10 lg:grid-cols-[0.9fr_1.1fr]"
       >
-        <div className="text-center mb-8">
-          <div className="bg-blue-600 p-3 rounded-xl inline-block mb-4">
-            <Wrench
-              className="text-white"
-              size={32}
-            />
+        <section className="hidden bg-gradient-to-br from-slate-950 via-teal-800 to-cyan-700 p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div>
+            <div className="mb-8 flex items-center gap-3">
+              <div className="rounded-xl bg-white/15 p-3 backdrop-blur">
+                <Wrench className="h-7 w-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">FixYa</h1>
+                <p className="text-sm text-cyan-100">Servicios tecnicos</p>
+              </div>
+            </div>
+            <h2 className="text-4xl font-bold leading-tight">
+              Gestiona servicios del hogar con una experiencia clara y segura.
+            </h2>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Bienvenido a FixYa
-          </h1>
+          <div className="rounded-2xl bg-white/12 p-5 backdrop-blur">
+            <p className="text-sm leading-6 text-cyan-50">
+              Clientes, tecnicos y administradores trabajan sobre una misma
+              plataforma con solicitudes, cotizaciones, reseñas y moderacion.
+            </p>
+          </div>
+        </section>
 
-          <p className="text-gray-600 text-lg">
-            Selecciona cómo deseas ingresar
-          </p>
-        </div>
+        <section className="p-8 md:p-12">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-700/25 lg:hidden">
+              <Wrench size={28} />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-950">
+              Bienvenido de vuelta
+            </h1>
+            <p className="mt-2 text-slate-600">
+              Selecciona tu rol e ingresa con tus credenciales.
+            </p>
+          </div>
 
-        <form onSubmit={handleLogin}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {roles.map((role) => (
-              <motion.button
-                key={role.type}
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() =>
-                  setSelectedRole(role.type)
-                }
-                className={`p-6 rounded-2xl border-2 transition-all ${
-                  selectedRole === role.type
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`${role.color} w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4`}
-                >
-                  <role.icon size={32} />
-                </div>
-
-                <h3 className="font-bold text-gray-900 text-lg mb-2">
-                  {role.title}
-                </h3>
-
-                <p className="text-gray-600 text-sm">
-                  {role.description}
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {roles.map((role) => (
+                  <button
+                    key={role.type}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole(role.type);
+                      setFieldErrors((prev) => ({ ...prev, role: undefined }));
+                    }}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      selectedRole === role.type
+                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                        : fieldErrors.role
+                          ? "border-red-200 bg-white hover:border-red-300"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className={`mb-3 inline-flex rounded-xl p-2 ${role.color}`}>
+                      <role.icon size={22} />
+                    </div>
+                    <h3 className="font-bold text-slate-950">{role.title}</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {role.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              {fieldErrors.role && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {fieldErrors.role}
                 </p>
-              </motion.button>
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block font-medium text-gray-700 mb-2">
-                Correo electrónico
-              </label>
-
-              <input
-                type="email"
-                value={correo}
-                onChange={(e) =>
-                  setCorreo(e.target.value)
-                }
-                required
-                placeholder="tu@email.com"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
+              )}
             </div>
 
-            <div>
-              <label className="block font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
+            <div className="grid gap-4">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Correo electronico
+                </label>
+                <input
+                  type="email"
+                  value={correo}
+                  onChange={(event) => {
+                    setCorreo(event.target.value);
+                    setFieldErrors((prev) => ({ ...prev, correo: undefined }));
+                  }}
+                  placeholder="tu@email.com"
+                  className={`fixya-input ${fieldErrors.correo ? "border-red-300 focus:border-red-500" : ""}`}
+                />
+                {fieldErrors.correo && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {fieldErrors.correo}
+                  </p>
+                )}
+              </div>
 
-              <input
-                type="password"
-                value={contrasena}
-                onChange={(e) =>
-                  setContrasena(e.target.value)
-                }
-                required
-                placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Contrasena
+                </label>
+                <input
+                  type="password"
+                  value={contrasena}
+                  onChange={(event) => {
+                    setContrasena(event.target.value);
+                    setFieldErrors((prev) => ({ ...prev, contrasena: undefined }));
+                  }}
+                  placeholder="********"
+                  className={`fixya-input ${fieldErrors.contrasena ? "border-red-300 focus:border-red-500" : ""}`}
+                />
+                {fieldErrors.contrasena && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {fieldErrors.contrasena}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          {error && (
-            <div className="mt-4 text-center text-red-600 font-medium">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                <AlertCircle size={18} />
+                {error}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={!selectedRole}
-            className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors mt-6 disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            Iniciar Sesión
-          </button>
-
-          <p className="text-center text-gray-600 text-sm mt-6">
-            ¿No tienes cuenta?{" "}
-            <Link
-              to="/register"
-              className="text-blue-600 font-semibold hover:text-blue-700"
+            <button
+              type="submit"
+              disabled={!selectedRole || loading}
+              className="fixya-btn-primary w-full px-5 py-4"
             >
-              Regístrate aquí
-            </Link>
-          </p>
-        </form>
+              <LogIn size={18} />
+              {loading ? "Ingresando..." : "Iniciar sesion"}
+            </button>
+
+            <p className="text-center text-sm text-slate-600">
+              No tienes cuenta?{" "}
+              <Link
+                to="/register"
+                className="font-bold text-teal-700 hover:text-teal-800"
+              >
+                Registrate aqui
+              </Link>
+            </p>
+          </form>
+        </section>
       </motion.div>
     </div>
   );

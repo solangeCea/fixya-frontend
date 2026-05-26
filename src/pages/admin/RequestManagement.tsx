@@ -1,19 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ClipboardList, RefreshCw } from "lucide-react";
+import { AlertCircle, ClipboardList, Eye, RefreshCw } from "lucide-react";
 
 import { getSolicitudes } from "../../services/solicitudService";
 import type { Solicitud } from "../../services/solicitudService";
 import { getComunas, getServicios } from "../../services/catalogService";
 import type { Comuna, Servicio } from "../../services/catalogService";
+import Modal from "../../components/ui/Modal";
 
 function getEstadoStyle(estado: string) {
-  if (estado === "INICIADO") return "bg-blue-100 text-blue-700";
-  if (estado === "ASIGNADO") return "bg-yellow-100 text-yellow-700";
-  if (estado === "EN_PROCESO") return "bg-purple-100 text-purple-700";
-  if (estado === "FINALIZADO") return "bg-green-100 text-green-700";
-  if (estado === "CANCELADO") return "bg-red-100 text-red-700";
+  if (estado === "INICIADO") return "bg-cyan-100 text-cyan-700";
+  if (estado === "ASIGNADO") return "bg-amber-100 text-amber-700";
+  if (estado === "EN_PROCESO") return "bg-teal-100 text-teal-700";
+  if (estado === "FINALIZADO") return "bg-emerald-100 text-emerald-700";
+  if (estado === "CANCELADO") return "bg-rose-100 text-rose-700";
 
   return "bg-gray-100 text-gray-700";
+}
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 break-words text-sm font-semibold text-slate-950">
+        {value || "No informado"}
+      </p>
+    </div>
+  );
 }
 
 function RequestManagement() {
@@ -22,6 +42,7 @@ function RequestManagement() {
   const [comunas, setComunas] = useState<Comuna[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
 
   async function cargarDatos() {
     try {
@@ -147,8 +168,8 @@ function RequestManagement() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100">
-                      <ClipboardList className="text-blue-700" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100">
+                      <ClipboardList className="text-teal-700" />
                     </div>
 
                     <div>
@@ -189,18 +210,92 @@ function RequestManagement() {
                   </div>
                 </div>
 
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getEstadoStyle(
-                    solicitud.estado_trabajo
-                  )}`}
-                >
-                  {solicitud.estado_trabajo}
-                </span>
+                <div className="flex flex-col items-start gap-3 lg:items-end">
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getEstadoStyle(
+                      solicitud.estado_trabajo
+                    )}`}
+                  >
+                    {solicitud.estado_trabajo}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSolicitud(solicitud)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Ver detalle
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Modal
+        open={Boolean(selectedSolicitud)}
+        title={
+          selectedSolicitud
+            ? `Solicitud #${selectedSolicitud.id_solicitud}`
+            : "Detalle de solicitud"
+        }
+        description={selectedSolicitud?.titulo_solicitud}
+        onClose={() => setSelectedSolicitud(null)}
+      >
+        {selectedSolicitud && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${getEstadoStyle(
+                  selectedSolicitud.estado_trabajo
+                )}`}
+              >
+                {selectedSolicitud.estado_trabajo}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                Urgencia: {selectedSolicitud.urgencia}
+              </span>
+            </div>
+
+            <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+              {selectedSolicitud.descripcion_problema}
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailItem label="Cliente" value={selectedSolicitud.usuario_rut} />
+              <DetailItem
+                label="Técnico"
+                value={
+                  selectedSolicitud.tecnico_usuario_rut ||
+                  "Pendiente de aceptación"
+                }
+              />
+              <DetailItem
+                label="Servicio"
+                value={
+                  serviciosPorId.get(selectedSolicitud.servicio_id_servicio) ||
+                  `ID ${selectedSolicitud.servicio_id_servicio}`
+                }
+              />
+              <DetailItem
+                label="Comuna"
+                value={
+                  comunasPorId.get(selectedSolicitud.comuna_id_comuna) ||
+                  `ID ${selectedSolicitud.comuna_id_comuna}`
+                }
+              />
+              <DetailItem label="Dirección" value={selectedSolicitud.direccion} />
+              <DetailItem label="Referencia" value={selectedSolicitud.ubicacion_problema_referencia} />
+              <DetailItem label="Tipo de problema" value={selectedSolicitud.tipo_problema} />
+              <DetailItem label="Fecha creación" value={selectedSolicitud.fecha_creacion} />
+              <DetailItem label="Costo final" value={selectedSolicitud.costo_final} />
+              <DetailItem label="Fecha real" value={selectedSolicitud.fecha_real} />
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

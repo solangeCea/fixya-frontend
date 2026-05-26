@@ -18,6 +18,7 @@ import type { Tecnico } from "../../services/technicianService";
 
 import { getUsers } from "../../services/userService";
 import type { UsuarioAdmin } from "../../services/userService";
+import Modal from "../../components/ui/Modal";
 
 type FilterType = "all" | "verified" | "pending";
 
@@ -167,7 +168,7 @@ export default function TechnicianManagement() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar por nombre, correo, RUT o nivel"
-              className="w-full rounded-xl border border-gray-300 py-3 pl-12 pr-4 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full rounded-xl border border-slate-300 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-600"
             />
           </div>
 
@@ -176,7 +177,7 @@ export default function TechnicianManagement() {
               onClick={() => setFilter("all")}
               className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
                 filter === "all"
-                  ? "bg-blue-600 text-white"
+                  ? "bg-teal-700 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
@@ -264,8 +265,8 @@ export default function TechnicianManagement() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100">
-                          <UserCog className="h-5 w-5 text-blue-700" />
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-teal-100">
+                          <UserCog className="h-5 w-5 text-teal-700" />
                         </div>
 
                         <div>
@@ -326,7 +327,7 @@ export default function TechnicianManagement() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setSelectedTechnician(tech)}
-                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                          className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800"
                         >
                           Ver perfil
                         </button>
@@ -358,33 +359,14 @@ export default function TechnicianManagement() {
         </div>
       )}
 
-      {selectedTechnician && (
-        <div
-          onClick={() => setSelectedTechnician(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {selectedTechnician.nombre_completo}
-                </h2>
-                <p className="mt-1 text-gray-600">
-                  {selectedTechnician.descripcion_perfil}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setSelectedTechnician(null)}
-                className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-              >
-                Cerrar
-              </button>
-            </div>
-
+      <Modal
+        open={Boolean(selectedTechnician)}
+        title={selectedTechnician?.nombre_completo || "Perfil técnico"}
+        description={selectedTechnician?.descripcion_perfil || "Detalle administrativo del técnico."}
+        onClose={() => setSelectedTechnician(null)}
+      >
+        {selectedTechnician && (
+          <>
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-xl bg-gray-50 p-4">
                 <p className="text-sm font-medium text-gray-500">
@@ -443,9 +425,9 @@ export default function TechnicianManagement() {
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

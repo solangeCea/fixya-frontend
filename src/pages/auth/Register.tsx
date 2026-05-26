@@ -53,6 +53,25 @@ const initialForm: RegisterForm = {
   servicio_id_servicio: 0,
 };
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+
+  return (
+    <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+      <AlertCircle className="h-3.5 w-3.5" />
+      {message}
+    </p>
+  );
+}
+
+function fieldClass(error?: string) {
+  return `w-full rounded-xl border px-4 py-3 transition focus:outline-none focus:ring-2 ${
+    error
+      ? "border-red-300 bg-red-50/40 focus:border-red-500 focus:ring-red-100"
+      : "border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-100"
+  }`;
+}
+
 function Register() {
   const [userType, setUserType] = useState<UserType>("cliente");
   const [form, setForm] = useState<RegisterForm>(initialForm);
@@ -63,6 +82,7 @@ function Register() {
   const [loadingComunas, setLoadingComunas] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const navigate = useNavigate();
 
@@ -129,6 +149,8 @@ function Register() {
           : value,
     }));
 
+    setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+
     if (name === "region_id_region") {
       const regionId = Number(value);
       const primeraComunaRegion = comunas.find(
@@ -140,6 +162,11 @@ function Register() {
         region_id_region: regionId,
         comuna_id_comuna: primeraComunaRegion?.id_comuna || 0,
       }));
+      setFieldErrors((prev) => ({
+        ...prev,
+        region_id_region: "",
+        comuna_id_comuna: "",
+      }));
     }
   }
 
@@ -148,6 +175,7 @@ function Register() {
   );
 
   function validarFormulario() {
+    const errors: Record<string, string> = {};
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
     const telefonoRegex = /^\d{8,12}$/;
     const nacimiento = new Date(`${form.fecha_nacimiento}T00:00:00`);
@@ -164,60 +192,66 @@ function Register() {
         ? 1
         : 0);
 
-    if (!form.rut.trim() || !form.nombre_completo.trim()) {
-      return "RUT y nombre son obligatorios.";
+    if (!form.nombre_completo.trim()) errors.nombre_completo = "Ingresa tu nombre completo.";
+    if (!form.rut.trim()) errors.rut = "Ingresa tu RUT.";
+    if (!form.correo.trim()) errors.correo = "Ingresa tu correo electronico.";
+    if (form.correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.correo)) {
+      errors.correo = "Ingresa un correo valido.";
     }
 
     if (!telefonoRegex.test(form.telefono)) {
-      return "El telefono debe contener solo numeros y tener entre 8 y 12 digitos.";
+      errors.telefono = "Usa solo numeros, entre 8 y 12 digitos.";
     }
 
     if (!passwordRegex.test(form.contrasena)) {
-      return "La contrasena debe tener 8 caracteres, mayuscula, minuscula y numero.";
+      errors.contrasena = "Minimo 8 caracteres, mayuscula, minuscula y numero.";
     }
 
     if (!form.fecha_nacimiento || nacimiento > hoy || edad < 18) {
-      return "Debes tener al menos 18 anos y usar una fecha valida.";
+      errors.fecha_nacimiento = "Debes tener al menos 18 anos y usar una fecha valida.";
+    }
+
+    if (form.contrasena !== form.confirmarContrasena) {
+      errors.confirmarContrasena = "Las contrasenas no coinciden.";
+    }
+
+    if (!form.region_id_region) {
+      errors.region_id_region = "Selecciona una region.";
+    }
+
+    if (!form.comuna_id_comuna) {
+      errors.comuna_id_comuna = "Selecciona una comuna.";
     }
 
     if (userType === "tecnico") {
       if (!form.descripcion_perfil.trim() || form.experiencia_anios < 0) {
-        return "Completa descripcion y experiencia del tecnico.";
+        errors.descripcion_perfil = "Describe tu experiencia y especialidad.";
       }
 
       if (!form.servicio_id_servicio) {
-        return "Selecciona un servicio para el perfil tecnico.";
+        errors.servicio_id_servicio = "Selecciona un servicio principal.";
       }
 
       if (!documento) {
-        return "Debes subir un documento tecnico.";
+        errors.documento = "Sube un documento tecnico.";
       }
 
       const tiposPermitidos = ["application/pdf", "image/jpeg", "image/png"];
-      if (!tiposPermitidos.includes(documento.type)) {
-        return "El documento debe ser PDF, JPG o PNG.";
+      if (documento && !tiposPermitidos.includes(documento.type)) {
+        errors.documento = "El documento debe ser PDF, JPG o PNG.";
       }
     }
 
-    return "";
+    setFieldErrors(errors);
+    return errors;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const validationError = validarFormulario();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    if (form.contrasena !== form.confirmarContrasena) {
-      setError("Las contraseñas no coinciden.");
-      return;
-    }
-
-    if (!form.comuna_id_comuna) {
-      setError("Debes seleccionar una comuna.");
+    const validationErrors = validarFormulario();
+    if (Object.keys(validationErrors).length > 0) {
+      setError("");
       return;
     }
 
@@ -385,8 +419,9 @@ function Register() {
                   type="text"
                   required
                   placeholder="Juan Pérez"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.nombre_completo)}
                 />
+                <FieldError message={fieldErrors.nombre_completo} />
               </div>
 
               <div>
@@ -401,8 +436,9 @@ function Register() {
                   type="text"
                   required
                   placeholder="12345678-9"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.rut)}
                 />
+                <FieldError message={fieldErrors.rut} />
               </div>
             </div>
 
@@ -418,8 +454,9 @@ function Register() {
                   onChange={handleChange}
                   type="date"
                   required
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.fecha_nacimiento)}
                 />
+                <FieldError message={fieldErrors.fecha_nacimiento} />
               </div>
 
               <div>
@@ -453,8 +490,9 @@ function Register() {
                 type="email"
                 required
                 placeholder="correo@gmail.com"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={fieldClass(fieldErrors.correo)}
               />
+              <FieldError message={fieldErrors.correo} />
             </div>
 
             <div>
@@ -469,8 +507,9 @@ function Register() {
                 type="tel"
                 required
                 placeholder="912345678"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={fieldClass(fieldErrors.telefono)}
               />
+              <FieldError message={fieldErrors.telefono} />
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -485,7 +524,7 @@ function Register() {
                   onChange={handleChange}
                   required
                   disabled={loadingComunas || regiones.length === 0}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.region_id_region)}
                 >
                   {regiones.length === 0 && (
                     <option value={0}>Sin regiones disponibles</option>
@@ -496,6 +535,7 @@ function Register() {
                     </option>
                   ))}
                 </select>
+                <FieldError message={fieldErrors.region_id_region} />
               </div>
 
               <div>
@@ -509,7 +549,7 @@ function Register() {
                   onChange={handleChange}
                   required
                   disabled={loadingComunas || comunasFiltradas.length === 0}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.comuna_id_comuna)}
                 >
                   {comunasFiltradas.length === 0 && (
                     <option value={0}>Sin comunas para la región</option>
@@ -520,6 +560,7 @@ function Register() {
                     </option>
                   ))}
                 </select>
+                <FieldError message={fieldErrors.comuna_id_comuna} />
               </div>
             </div>
 
@@ -535,7 +576,7 @@ function Register() {
                       value={form.servicio_id_servicio}
                       onChange={handleChange}
                       disabled={servicios.length === 0}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className={fieldClass(fieldErrors.servicio_id_servicio)}
                     >
                       {servicios.length === 0 && (
                         <option value={0}>Sin servicios disponibles</option>
@@ -549,6 +590,7 @@ function Register() {
                         </option>
                       ))}
                     </select>
+                    <FieldError message={fieldErrors.servicio_id_servicio} />
                   </div>
 
                   <div>
@@ -578,8 +620,9 @@ function Register() {
                     onChange={handleChange}
                     type="number"
                     min="0"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className={fieldClass(fieldErrors.experiencia_anios)}
                   />
+                  <FieldError message={fieldErrors.experiencia_anios} />
                 </div>
 
                 <div>
@@ -592,8 +635,9 @@ function Register() {
                     onChange={handleChange}
                     type="text"
                     placeholder="Especialidad, experiencia y tipo de trabajos"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className={fieldClass(fieldErrors.descripcion_perfil)}
                   />
+                  <FieldError message={fieldErrors.descripcion_perfil} />
                 </div>
 
                 <div>
@@ -603,11 +647,13 @@ function Register() {
                   <input
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(event) =>
-                      setDocumento(event.target.files?.[0] || null)
-                    }
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    onChange={(event) => {
+                      setDocumento(event.target.files?.[0] || null);
+                      setFieldErrors((prev) => ({ ...prev, documento: "" }));
+                    }}
+                    className={fieldClass(fieldErrors.documento)}
                   />
+                  <FieldError message={fieldErrors.documento} />
                   <p className="mt-2 text-xs text-yellow-800">
                     Formatos permitidos: PDF, JPG o PNG.
                   </p>
@@ -628,8 +674,9 @@ function Register() {
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.contrasena)}
                 />
+                <FieldError message={fieldErrors.contrasena} />
               </div>
 
               <div>
@@ -644,8 +691,9 @@ function Register() {
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className={fieldClass(fieldErrors.confirmarContrasena)}
                 />
+                <FieldError message={fieldErrors.confirmarContrasena} />
               </div>
             </div>
 

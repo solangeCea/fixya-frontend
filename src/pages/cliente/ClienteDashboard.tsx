@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
+  CheckCircle2,
   ClipboardList,
+  Download,
   MapPin,
   PlusCircle,
   Send,
   Star,
+  TrendingUp,
   Wrench,
 } from "lucide-react";
 
@@ -30,6 +33,7 @@ import {
   rejectCotizacion,
 } from "../../services/cotizacionService";
 import type { Cotizacion } from "../../services/cotizacionService";
+import StatusBadge from "../../components/ui/StatusBadge";
 
 
 const initialForm = {
@@ -43,6 +47,25 @@ const initialForm = {
   foto_problema: "",
   ubicacion_problema_referencia: "",
 };
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+
+  return (
+    <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+      <AlertCircle className="h-3.5 w-3.5" />
+      {message}
+    </p>
+  );
+}
+
+function fieldClass(error?: string) {
+  return `w-full rounded-xl border px-4 py-3 transition focus:outline-none focus:ring-2 ${
+    error
+      ? "border-red-300 bg-red-50/40 focus:border-red-500 focus:ring-red-100"
+      : "border-slate-300 bg-white focus:border-blue-500 focus:ring-blue-100"
+  }`;
+}
 
 function ClienteDashboard() {
   const { usuario } = useAuth();
@@ -60,6 +83,8 @@ function ClienteDashboard() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [reviewErrors, setReviewErrors] = useState<Record<number, string>>({});
 
   const [reviewingId, setReviewingId] = useState<number | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -153,6 +178,7 @@ function ClienteDashboard() {
           ? Number(value)
           : value,
     }));
+    setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -163,8 +189,21 @@ function ClienteDashboard() {
       return;
     }
 
-    if (!form.servicio_id_servicio || !form.comuna_id_comuna) {
-      setError("Debes seleccionar servicio y comuna.");
+    const nextErrors: Record<string, string> = {};
+    if (!form.servicio_id_servicio) nextErrors.servicio_id_servicio = "Selecciona un servicio.";
+    if (!form.comuna_id_comuna) nextErrors.comuna_id_comuna = "Selecciona una comuna.";
+    if (!form.titulo_solicitud.trim()) nextErrors.titulo_solicitud = "Escribe un titulo breve.";
+    if (!form.descripcion_problema.trim()) nextErrors.descripcion_problema = "Describe el problema.";
+    if (!form.direccion.trim()) nextErrors.direccion = "Ingresa la direccion.";
+    if (!form.tipo_problema.trim()) nextErrors.tipo_problema = "Indica el tipo de problema.";
+    if (!form.ubicacion_problema_referencia.trim()) {
+      nextErrors.ubicacion_problema_referencia = "Agrega una referencia de ubicacion.";
+    }
+
+    setFieldErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setError("");
       return;
     }
 
@@ -206,7 +245,10 @@ function ClienteDashboard() {
 
   async function handleCreateReview(idSolicitud: number) {
     if (!reviewComment.trim()) {
-      setError("Debes escribir un comentario para la reseña.");
+      setReviewErrors((prev) => ({
+        ...prev,
+        [idSolicitud]: "Escribe un comentario para publicar tu reseña.",
+      }));
       return;
     }
 
@@ -222,6 +264,7 @@ function ClienteDashboard() {
       });
 
       setSuccess("Reseña creada correctamente.");
+      setReviewErrors((prev) => ({ ...prev, [idSolicitud]: "" }));
       setReviewComment("");
       setReviewRating(5);
       setReviewingId(null);
@@ -261,18 +304,40 @@ function ClienteDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50">
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Panel del Cliente
+          <h1 className="text-4xl font-black tracking-tight text-slate-950">
+            Hola, {usuario?.nombre_completo?.split(" ")[0] || "cliente"}
           </h1>
 
           <p className="mt-2 text-gray-600">
-            Crea solicitudes técnicas y revisa el estado de tus servicios.
+            Gestiona solicitudes, revisa cotizaciones y califica trabajos finalizados.
           </p>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <ClipboardList className="h-6 w-6 text-blue-600" />
+              <p className="mt-4 text-3xl font-black text-slate-950">{solicitudes.length}</p>
+              <p className="text-sm text-slate-500">Solicitudes creadas</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <TrendingUp className="h-6 w-6 text-violet-600" />
+              <p className="mt-4 text-3xl font-black text-slate-950">
+                {solicitudes.filter((item) => item.estado_trabajo !== "FINALIZADO").length}
+              </p>
+              <p className="text-sm text-slate-500">En seguimiento</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <p className="mt-4 text-3xl font-black text-slate-950">
+                {solicitudes.filter((item) => item.estado_trabajo === "FINALIZADO").length}
+              </p>
+              <p className="text-sm text-slate-500">Finalizadas</p>
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
@@ -307,12 +372,13 @@ function ClienteDashboard() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
               <select
                 name="servicio_id_servicio"
                 value={form.servicio_id_servicio}
                 onChange={handleChange}
                 disabled={loadingCatalogos || servicios.length === 0}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass(fieldErrors.servicio_id_servicio)}
               >
                 {servicios.length === 0 && (
                   <option value={0}>Sin servicios disponibles</option>
@@ -326,13 +392,16 @@ function ClienteDashboard() {
                   </option>
                 ))}
               </select>
+              <FieldError message={fieldErrors.servicio_id_servicio} />
+              </div>
 
+              <div>
               <select
                 name="comuna_id_comuna"
                 value={form.comuna_id_comuna}
                 onChange={handleChange}
                 disabled={loadingCatalogos || comunas.length === 0}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass(fieldErrors.comuna_id_comuna)}
               >
                 {comunas.length === 0 && (
                   <option value={0}>Sin comunas disponibles</option>
@@ -343,71 +412,83 @@ function ClienteDashboard() {
                   </option>
                 ))}
               </select>
+              <FieldError message={fieldErrors.comuna_id_comuna} />
+              </div>
 
+              <div>
               <input
                 name="titulo_solicitud"
                 value={form.titulo_solicitud}
                 onChange={handleChange}
                 placeholder="Título de la solicitud"
-                required
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass(fieldErrors.titulo_solicitud)}
               />
+              <FieldError message={fieldErrors.titulo_solicitud} />
+              </div>
 
+              <div>
               <textarea
                 name="descripcion_problema"
                 value={form.descripcion_problema}
                 onChange={handleChange}
                 placeholder="Describe el problema"
-                required
                 rows={4}
-                className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3"
+                className={`${fieldClass(fieldErrors.descripcion_problema)} resize-none`}
               />
+              <FieldError message={fieldErrors.descripcion_problema} />
+              </div>
 
               <select
                 name="urgencia"
                 value={form.urgencia}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass()}
               >
                 <option value="BAJA">Baja</option>
                 <option value="MEDIA">Media</option>
                 <option value="ALTA">Alta</option>
               </select>
 
+              <div>
               <input
                 name="direccion"
                 value={form.direccion}
                 onChange={handleChange}
                 placeholder="Dirección"
-                required
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass(fieldErrors.direccion)}
               />
+              <FieldError message={fieldErrors.direccion} />
+              </div>
 
+              <div>
               <input
                 name="tipo_problema"
                 value={form.tipo_problema}
                 onChange={handleChange}
                 placeholder="Tipo de problema"
-                required
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass(fieldErrors.tipo_problema)}
               />
+              <FieldError message={fieldErrors.tipo_problema} />
+              </div>
 
               <input
                 name="foto_problema"
                 value={form.foto_problema}
                 onChange={handleChange}
                 placeholder="URL de imagen opcional"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass()}
               />
 
+              <div>
               <input
                 name="ubicacion_problema_referencia"
                 value={form.ubicacion_problema_referencia}
                 onChange={handleChange}
                 placeholder="Referencia de ubicación"
-                required
-                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                className={fieldClass(fieldErrors.ubicacion_problema_referencia)}
               />
+              <FieldError message={fieldErrors.ubicacion_problema_referencia} />
+              </div>
 
               <button
                 type="submit"
@@ -498,8 +579,9 @@ function ClienteDashboard() {
                     </div>
 
                     {(cotizaciones[solicitud.id_solicitud]?.length || 0) > 0 && (
-                      <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                        <h4 className="mb-3 font-bold text-gray-900">
+                      <div className="mt-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-slate-50 p-4">
+                        <h4 className="mb-3 flex items-center gap-2 font-bold text-gray-900">
+                          <ClipboardList className="h-5 w-5 text-blue-700" />
                           Cotizaciones recibidas
                         </h4>
 
@@ -508,12 +590,15 @@ function ClienteDashboard() {
                             (cotizacion) => (
                               <div
                                 key={cotizacion.id_cotizacion}
-                                className="rounded-xl bg-white p-4 shadow-sm"
+                                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                               >
-                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                   <div>
-                                    <p className="font-semibold text-gray-900">
-                                      ${cotizacion.monto_estimado}
+                                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                                      Cotizacion #{cotizacion.id_cotizacion}
+                                    </p>
+                                    <p className="mt-1 text-3xl font-bold text-slate-950">
+                                      ${Number(cotizacion.monto_estimado).toLocaleString("es-CL")}
                                     </p>
                                     <p className="mt-1 text-sm text-gray-600">
                                       {cotizacion.mensaje_cotizacion}
@@ -524,25 +609,25 @@ function ClienteDashboard() {
                                     </p>
                                   </div>
 
-                                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
-                                    {cotizacion.estado_cotizacion}
-                                  </span>
+                                  <StatusBadge status={cotizacion.estado_cotizacion} />
                                 </div>
 
-                                {cotizacion.archivo_pdf_url && (
-                                  <a
-                                    href={`http://localhost:8000${cotizacion.archivo_pdf_url}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="mt-3 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800"
-                                  >
-                                    Descargar PDF
-                                  </a>
-                                )}
+                                <div className="mt-4 flex flex-wrap items-center gap-2">
+                                  {cotizacion.archivo_pdf_url && (
+                                    <a
+                                      href={`http://localhost:8000${cotizacion.archivo_pdf_url}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                      PDF
+                                    </a>
+                                  )}
 
-                                {cotizacion.estado_cotizacion ===
-                                  "ENVIADA" && (
-                                  <div className="mt-4 flex flex-wrap gap-2">
+                                  {cotizacion.estado_cotizacion ===
+                                    "ENVIADA" && (
+                                    <>
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -551,7 +636,7 @@ function ClienteDashboard() {
                                           "accept"
                                         )
                                       }
-                                      className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                                      className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700"
                                     >
                                       Aceptar
                                     </button>
@@ -563,12 +648,13 @@ function ClienteDashboard() {
                                           "reject"
                                         )
                                       }
-                                      className="rounded-xl bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+                                      className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
                                     >
                                       Rechazar
                                     </button>
-                                  </div>
-                                )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             )
                           )}
@@ -628,13 +714,18 @@ function ClienteDashboard() {
 
                             <textarea
                               value={reviewComment}
-                              onChange={(event) =>
-                                setReviewComment(event.target.value)
-                              }
+                              onChange={(event) => {
+                                setReviewComment(event.target.value);
+                                setReviewErrors((prev) => ({
+                                  ...prev,
+                                  [solicitud.id_solicitud]: "",
+                                }));
+                              }}
                               rows={4}
                               placeholder="Describe cómo fue el servicio recibido"
-                              className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                              className={`${fieldClass(reviewErrors[solicitud.id_solicitud])} resize-none`}
                             />
+                            <FieldError message={reviewErrors[solicitud.id_solicitud]} />
 
                             <button
                               type="button"

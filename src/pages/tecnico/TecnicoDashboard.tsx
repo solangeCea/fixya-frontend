@@ -25,6 +25,10 @@ import type { Solicitud } from "../../services/solicitudService";
 import { getServicios } from "../../services/catalogService";
 import type { Servicio } from "../../services/catalogService";
 import { createCotizacion } from "../../services/cotizacionService";
+import {
+  getTechnicianDashboard,
+  type TecnicoDashboardMetrics,
+} from "../../services/technicianService";
 
 function getEstadoStyle(estado: string) {
   if (estado === "INICIADO") {
@@ -58,6 +62,7 @@ function TecnicoDashboard() {
   >([]);
   const [misSolicitudes, setMisSolicitudes] = useState<Solicitud[]>([]);
   const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [metrics, setMetrics] = useState<TecnicoDashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [accionLoading, setAccionLoading] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -79,10 +84,11 @@ function TecnicoDashboard() {
       setLoading(true);
       setError("");
 
-      const [todas, asignadas, serviciosData] = await Promise.all([
+      const [todas, asignadas, serviciosData, metricasData] = await Promise.all([
         getSolicitudes(),
         getSolicitudesTecnico(usuario.rut),
         getServicios(),
+        getTechnicianDashboard(usuario.rut),
       ]);
 
       const disponibles = todas.filter(
@@ -94,6 +100,7 @@ function TecnicoDashboard() {
       setSolicitudesDisponibles(disponibles);
       setMisSolicitudes(asignadas);
       setServicios(serviciosData);
+      setMetrics(metricasData);
     } catch {
       setError("No se pudieron cargar las solicitudes del técnico.");
     } finally {
@@ -250,7 +257,7 @@ function TecnicoDashboard() {
           </p>
         </div>
 
-        <div className="mb-8 grid gap-6 md:grid-cols-3">
+        <div className="mb-8 grid gap-6 md:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100">
@@ -297,6 +304,30 @@ function TecnicoDashboard() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">Rating</p>
+            <p className="mt-2 text-3xl font-bold text-yellow-600">
+              {metrics?.promedio_calificacion ?? 0}
+            </p>
+            <p className="text-xs text-gray-500">
+              {metrics?.total_resenas ?? 0} reseñas
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">Ingresos</p>
+            <p className="mt-2 text-3xl font-bold text-green-700">
+              ${metrics?.ingresos_totales ?? 0}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">En proceso</p>
+            <p className="mt-2 text-3xl font-bold text-purple-700">
+              {metrics?.solicitudes_en_proceso ?? 0}
+            </p>
           </div>
         </div>
 

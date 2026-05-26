@@ -6,11 +6,18 @@ import {
   AlertCircle,
   ArrowRight,
   RefreshCw,
+  ClipboardList,
+  Star,
+  FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { getAdminDashboard } from "../../services/dashboardService";
 import type { AdminDashboardData } from "../../services/dashboardService";
+import PageHeader from "../../components/ui/PageHeader";
+import StatCard from "../../components/ui/StatCard";
+import SectionCard from "../../components/ui/SectionCard";
+import LoadingState from "../../components/ui/LoadingState";
 
 function AdminDashboard() {
   const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
@@ -26,7 +33,7 @@ function AdminDashboard() {
       setDashboard(data);
     } catch (error) {
       console.error("Error cargando dashboard:", error);
-      setError("No se pudieron cargar las métricas del dashboard.");
+      setError("No se pudieron cargar las metricas del dashboard.");
     } finally {
       setLoading(false);
     }
@@ -38,23 +45,20 @@ function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <RefreshCw className="mx-auto mb-3 animate-spin text-blue-600" />
-          <p className="font-medium text-gray-700">Cargando métricas reales...</p>
-        </div>
+      <div className="fixya-page">
+        <LoadingState label="Cargando metricas reales..." />
       </div>
     );
   }
 
   if (error || !dashboard) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="fixya-page">
+        <div className="fixya-card rounded-2xl border-red-200 bg-red-50 p-6 text-red-700">
           <p className="font-semibold">{error}</p>
           <button
             onClick={cargarDashboard}
-            className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
           >
             Reintentar
           </button>
@@ -63,164 +67,158 @@ function AdminDashboard() {
     );
   }
 
-  const stats = [
-    {
-      label: "Usuarios Activos",
-      value: dashboard.total_usuarios,
-      description: "Usuarios registrados",
-      icon: Users,
-      color: "bg-blue-100 text-blue-700",
-    },
-    {
-      label: "Técnicos Verificados",
-      value: dashboard.tecnicos_verificados,
-      description: `${dashboard.total_tecnicos} técnicos en total`,
-      icon: UserCheck,
-      color: "bg-green-100 text-green-700",
-    },
-    {
-      label: "Técnicos Pendientes",
-      value: dashboard.tecnicos_pendientes,
-      description: "Requieren revisión",
-      icon: Clock,
-      color: "bg-yellow-100 text-yellow-700",
-    },
-    {
-      label: "Reseñas Reportadas",
-      value: dashboard.resenas_reportadas,
-      description: "Pendientes moderación",
-      icon: AlertCircle,
-      color: "bg-red-100 text-red-700",
-    },
-  ];
-
   const quickActions = [
     {
-      title: "Aprobar Técnicos",
-      description: "Revisa y aprueba solicitudes pendientes",
+      title: "Aprobar tecnicos",
+      description: "Revisa perfiles pendientes de validacion.",
       link: "/admin/tecnicos",
       count: dashboard.tecnicos_pendientes,
-      color: "border-blue-200 bg-blue-50",
+      icon: UserCheck,
     },
     {
-      title: "Revisar Reseñas",
-      description: "Modera reseñas reportadas",
+      title: "Moderar resenas",
+      description: "Gestiona reportes pendientes.",
       link: "/admin/resenas",
       count: dashboard.resenas_reportadas,
-      color: "border-red-200 bg-red-50",
+      icon: Star,
     },
     {
-      title: "Ver Usuarios",
-      description: "Gestiona usuarios de la plataforma",
+      title: "Solicitudes",
+      description: "Monitorea trabajos por estado.",
+      link: "/admin/solicitudes",
+      count: dashboard.total_solicitudes,
+      icon: ClipboardList,
+    },
+    {
+      title: "Usuarios",
+      description: "Consulta usuarios de la plataforma.",
       link: "/admin/usuarios",
       count: dashboard.total_usuarios,
-      color: "border-purple-200 bg-purple-50",
+      icon: Users,
     },
   ];
 
   return (
-    <div className="space-y-8 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Resumen</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Métricas reales obtenidas desde el backend.
-          </p>
-        </div>
-
-        <button
-          onClick={cargarDashboard}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          <RefreshCw size={16} />
-          Actualizar
-        </button>
-      </div>
+    <div className="fixya-page">
+      <PageHeader
+        eyebrow="Panel administrativo"
+        title="Resumen operativo"
+        description="Metricas reales del ecosistema FixYa: usuarios, tecnicos, solicitudes, resenas y cotizaciones."
+        actions={
+          <button
+            onClick={cargarDashboard}
+            className="fixya-btn-primary px-4 py-3 text-sm"
+          >
+            <RefreshCw size={16} />
+            Actualizar
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <div className={`rounded-xl p-3 ${stat.color}`}>
-                <stat.icon size={24} />
-              </div>
-            </div>
-
-            <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            <p className="mt-1 font-medium text-gray-700">{stat.label}</p>
-            <p className="mt-1 text-sm text-gray-500">{stat.description}</p>
-          </div>
-        ))}
+        <StatCard
+          label="Usuarios"
+          value={dashboard.total_usuarios}
+          description={`${dashboard.total_clientes} clientes, ${dashboard.total_admins} admins`}
+          icon={Users}
+          tone="blue"
+        />
+        <StatCard
+          label="Tecnicos verificados"
+          value={dashboard.tecnicos_verificados}
+          description={`${dashboard.total_tecnicos} tecnicos registrados`}
+          icon={UserCheck}
+          tone="green"
+        />
+        <StatCard
+          label="Tecnicos pendientes"
+          value={dashboard.tecnicos_pendientes}
+          description="Requieren revision admin"
+          icon={Clock}
+          tone="yellow"
+        />
+        <StatCard
+          label="Reportes pendientes"
+          value={dashboard.resenas_reportadas}
+          description="Resenas por moderar"
+          icon={AlertCircle}
+          tone="red"
+        />
       </div>
 
-      <div>
-        <h2 className="mb-4 text-xl font-bold text-gray-900">
-          Acciones Rápidas
-        </h2>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {quickActions.map((action) => (
-            <Link
-              key={action.title}
-              to={action.link}
-              className={`rounded-2xl border p-6 transition hover:-translate-y-1 hover:shadow-md ${action.color}`}
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-900">
-                  {action.title}
-                </h3>
-                <ArrowRight className="text-gray-500" />
+      <div className="mt-8 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <SectionCard
+          title="Estado del sistema"
+          description="Distribucion actual de solicitudes y contenido."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Iniciadas", dashboard.solicitudes_iniciadas, "text-cyan-700"],
+              ["Asignadas", dashboard.solicitudes_asignadas, "text-amber-700"],
+              ["En proceso", dashboard.solicitudes_en_proceso, "text-teal-700"],
+              ["Finalizadas", dashboard.solicitudes_finalizadas, "text-emerald-700"],
+              ["Canceladas", dashboard.solicitudes_canceladas, "text-rose-700"],
+              ["Cotizaciones", dashboard.total_cotizaciones, "text-slate-700"],
+            ].map(([label, value, color]) => (
+              <div key={label} className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-500">{label}</p>
+                <p className={`mt-2 text-3xl font-bold ${color}`}>{value}</p>
               </div>
+            ))}
+          </div>
+        </SectionCard>
 
-              <p className="mb-4 text-sm text-gray-600">
-                {action.description}
-              </p>
-
-              <span className="inline-flex rounded-lg bg-white px-3 py-1 text-sm font-bold text-gray-900">
-                {action.count}
-              </span>
-            </Link>
-          ))}
-        </div>
+        <SectionCard title="Acciones rapidas" description="Atajos administrativos">
+          <div className="space-y-3">
+            {quickActions.map((action) => (
+              <Link
+                key={action.title}
+                to={action.link}
+                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-teal-200 hover:bg-teal-50"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-teal-100 p-3 text-teal-700">
+                    <action.icon size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-950">{action.title}</p>
+                    <p className="text-sm text-slate-500">{action.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-900 ring-1 ring-slate-200">
+                    {action.count}
+                  </span>
+                  <ArrowRight className="h-5 w-5 text-slate-400" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">
-          Estado del Sistema
-        </h2>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Solicitudes activas</p>
-            <p className="text-2xl font-bold text-blue-700">
-              {dashboard.solicitudes_activas}
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Solicitudes finalizadas</p>
-            <p className="text-2xl font-bold text-green-700">
-              {dashboard.solicitudes_finalizadas}
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Reseñas activas</p>
-            <p className="text-2xl font-bold text-green-700">
-              {dashboard.resenas_activas}
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Promedio calificaciones</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {dashboard.promedio_calificaciones}
-            </p>
-          </div>
-        </div>
+      <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <StatCard
+          label="Resenas activas"
+          value={dashboard.resenas_activas}
+          description={`${dashboard.total_resenas} resenas totales`}
+          icon={Star}
+          tone="green"
+        />
+        <StatCard
+          label="Promedio general"
+          value={dashboard.promedio_general_calificaciones}
+          description="Calificacion promedio"
+          icon={Star}
+          tone="yellow"
+        />
+        <StatCard
+          label="Solicitudes activas"
+          value={dashboard.solicitudes_activas}
+          description="Iniciadas, asignadas o en proceso"
+          icon={FileText}
+          tone="purple"
+        />
       </div>
     </div>
   );

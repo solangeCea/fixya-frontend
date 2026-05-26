@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Briefcase, CheckCircle, Mail, Phone, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, Briefcase, CheckCircle, Mail, Phone, RefreshCw, Search, Star } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import { getPublicTechnicianProfiles } from "../services/technicianService";
@@ -108,7 +108,7 @@ function Tecnicos() {
                         {tecnico.nombre_completo}
                       </h2>
                       <p className="text-sm text-gray-500">
-                        {tecnico.nivel_tecnico}
+                        {tecnico.nivel_tecnico} · {tecnico.experiencia_anios} anos
                       </p>
                     </div>
                   </div>
@@ -122,6 +122,25 @@ function Tecnicos() {
                 <p className="text-sm text-gray-600">
                   {tecnico.descripcion_perfil}
                 </p>
+
+                <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+                  <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                  <span className="font-semibold text-gray-900">
+                    {tecnico.promedio_calificacion}
+                  </span>
+                  <span>({tecnico.total_resenas} reseñas)</span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {tecnico.servicios.slice(0, 3).map((servicio) => (
+                    <span
+                      key={servicio}
+                      className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
+                    >
+                      {servicio}
+                    </span>
+                  ))}
+                </div>
 
                 <button
                   onClick={() => setSelectedTecnico(tecnico)}
@@ -195,6 +214,29 @@ function Tecnicos() {
                 <p className="mt-1 flex items-center gap-2 text-sm text-gray-700">
                   <Phone className="h-4 w-4 text-gray-400" />
                   {selectedTecnico.telefono}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 md:col-span-2">
+                <p className="text-sm text-gray-500">Servicios</p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTecnico.servicios.length > 0
+                    ? selectedTecnico.servicios.join(", ")
+                    : "Sin servicios asociados"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 md:col-span-2">
+                <p className="text-sm text-gray-500">Comunas</p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTecnico.comunas.length > 0
+                    ? selectedTecnico.comunas.join(", ")
+                    : "Sin comunas asociadas"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 md:col-span-2">
+                <p className="text-sm text-gray-500">Reputacion</p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedTecnico.promedio_calificacion} estrellas ·{" "}
+                  {selectedTecnico.total_resenas} reseñas
                 </p>
               </div>
             </div>

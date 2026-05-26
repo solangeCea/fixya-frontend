@@ -13,6 +13,10 @@ export interface TecnicoPublicProfile extends Tecnico {
   nombre_completo: string;
   correo: string | null;
   telefono: string | null;
+  promedio_calificacion: number;
+  total_resenas: number;
+  servicios: string[];
+  comunas: string[];
 }
 
 export async function getPublicTechnicianProfiles(): Promise<
@@ -98,6 +102,35 @@ export async function searchTechnicians(
 
   if (!response.ok) {
     throw new Error("Error al buscar técnicos");
+  }
+
+  return response.json();
+}
+
+export interface TecnicoDashboardMetrics {
+  tecnico_usuario_rut: string;
+  solicitudes_asignadas: number;
+  solicitudes_en_proceso: number;
+  solicitudes_finalizadas: number;
+  ingresos_totales: number;
+  promedio_calificacion: number;
+  total_resenas: number;
+}
+
+export async function getTechnicianDashboard(
+  rut: string
+): Promise<TecnicoDashboardMetrics> {
+  const token = getToken();
+
+  const response = await fetch(`${API_URL}/tecnicos/${rut}/dashboard`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener dashboard tecnico");
   }
 
   return response.json();

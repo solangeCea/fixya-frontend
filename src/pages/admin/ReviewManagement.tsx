@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle, EyeOff, RefreshCw, Star } from "lucide-react";
+import { AlertTriangle, CheckCircle, Eye, EyeOff, RefreshCw, Star } from "lucide-react";
 
 import {
   approveReview,
@@ -7,6 +7,7 @@ import {
   hideReview,
 } from "../../services/reviewService";
 import type { Review } from "../../services/reviewService";
+import Modal from "../../components/ui/Modal";
 
 type ReviewFilter = "all" | "active" | "pending" | "hidden";
 
@@ -19,11 +20,31 @@ function getResolutionLabel(review: Review) {
   return review.resena_activa === "S" ? "Aprobada" : "Ocultada";
 }
 
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 break-words text-sm font-semibold text-slate-950">
+        {value || "No informado"}
+      </p>
+    </div>
+  );
+}
+
 export default function ReviewManagement() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -109,7 +130,7 @@ export default function ReviewManagement() {
     return (
       <div className="p-6">
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <RefreshCw className="mx-auto mb-3 animate-spin text-blue-600" />
+          <RefreshCw className="mx-auto mb-3 animate-spin text-teal-600" />
           <p className="font-medium text-gray-700">Cargando resenas reales...</p>
         </div>
       </div>
@@ -143,7 +164,7 @@ export default function ReviewManagement() {
             onClick={() => setFilter(item.key)}
             className={`rounded-2xl p-5 text-left shadow-sm ${
               filter === item.key
-                ? "bg-blue-600 text-white"
+                ? "bg-teal-700 text-white"
                 : "bg-white text-gray-900 hover:bg-gray-50"
             }`}
           >
@@ -246,8 +267,18 @@ export default function ReviewManagement() {
 
                   <p className="mb-5 text-gray-700">{review.comentario}</p>
 
-                  {pending && (
-                    <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReview(review)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"
+                    >
+                      <Eye size={16} />
+                      Ver detalle
+                    </button>
+
+                    {pending && (
+                      <>
                       <button
                         onClick={() => handleApprove(review.id_resena)}
                         disabled={actionLoading === review.id_resena}
@@ -269,14 +300,74 @@ export default function ReviewManagement() {
                           ? "Procesando..."
                           : "Ocultar resena"}
                       </button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      <Modal
+        open={Boolean(selectedReview)}
+        title={
+          selectedReview
+            ? `Reseña #${selectedReview.id_resena}`
+            : "Detalle de reseña"
+        }
+        description="Información completa de moderación y trazabilidad."
+        onClose={() => setSelectedReview(null)}
+      >
+        {selectedReview && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    size={20}
+                    className={
+                      i < Number(selectedReview.calificacion)
+                        ? "fill-amber-500 text-amber-500"
+                        : "text-slate-300"
+                    }
+                  />
+                ))}
+              </div>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  selectedReview.resena_activa === "S"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {getResolutionLabel(selectedReview) ||
+                  (selectedReview.resena_activa === "S" ? "Activa" : "Ocultada")}
+              </span>
+            </div>
+
+            <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+              {selectedReview.comentario}
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailItem label="Solicitud" value={selectedReview.solicitud_id_solicitud} />
+              <DetailItem label="Cliente" value={selectedReview.usuario_rut} />
+              <DetailItem label="Fecha reseña" value={selectedReview.fecha_resena} />
+              <DetailItem label="Reportada" value={selectedReview.resena_reportada === "S" ? "Sí" : "No"} />
+              <DetailItem label="Motivo reporte" value={selectedReview.motivo_reporte} />
+              <DetailItem label="Reporte resuelto" value={selectedReview.reporte_resuelto === "S" ? "Sí" : "No"} />
+              <DetailItem label="Fecha reporte" value={selectedReview.fecha_reporte} />
+              <DetailItem label="Fecha resolución" value={selectedReview.fecha_resolucion} />
+              <DetailItem label="Reportado por" value={selectedReview.usuario_rut_reporta} />
+              <DetailItem label="Resuelto por admin" value={selectedReview.admin_rut_resuelve} />
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
