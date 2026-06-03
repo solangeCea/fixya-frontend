@@ -1,5 +1,6 @@
 import API_URL from "./api";
 import { getToken } from "./token";
+import { fixDisplayText } from "../utils/text";
 
 export interface Tecnico {
   usuario_rut: string;
@@ -9,12 +10,24 @@ export interface Tecnico {
   tecnico_verificado: boolean;
 }
 
+export interface ResumenReputacion {
+  resumen: string;
+  sentimiento_general: string;
+  fortalezas: string[];
+  aspectos_a_mejorar: string[];
+  comentarios_analizados: number;
+  promedio_calificacion: number;
+  nivel_confianza: string;
+  modo_analisis: string;
+}
+
 export interface TecnicoPublicProfile extends Tecnico {
   nombre_completo: string;
   correo: string | null;
   telefono: string | null;
   promedio_calificacion: number;
   total_resenas: number;
+  resumen_reputacion: ResumenReputacion;
   servicios: string[];
   comunas: string[];
 }
@@ -30,7 +43,26 @@ export async function getPublicTechnicianProfiles(): Promise<
     throw new Error("Error al obtener perfiles de tecnicos");
   }
 
-  return response.json();
+  const data: TecnicoPublicProfile[] = await response.json();
+
+  return data.map((tecnico) => ({
+    ...tecnico,
+    nombre_completo: fixDisplayText(tecnico.nombre_completo),
+    descripcion_perfil: fixDisplayText(tecnico.descripcion_perfil),
+    servicios: tecnico.servicios.map((servicio) => fixDisplayText(servicio)),
+    comunas: tecnico.comunas.map((comuna) => fixDisplayText(comuna)),
+    resumen_reputacion: {
+      ...tecnico.resumen_reputacion,
+      resumen: fixDisplayText(tecnico.resumen_reputacion.resumen),
+      fortalezas: tecnico.resumen_reputacion.fortalezas.map((fortaleza) =>
+        fixDisplayText(fortaleza)
+      ),
+      aspectos_a_mejorar:
+        tecnico.resumen_reputacion.aspectos_a_mejorar.map((aspecto) =>
+          fixDisplayText(aspecto)
+        ),
+    },
+  }));
 }
 
 export async function getTechnicians(): Promise<Tecnico[]> {

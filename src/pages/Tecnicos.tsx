@@ -1,9 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Briefcase, CheckCircle, Mail, Phone, RefreshCw, Search, Star } from "lucide-react";
+import {
+  AlertCircle,
+  Brain,
+  Briefcase,
+  CheckCircle,
+  Mail,
+  Phone,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Star,
+} from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import { getPublicTechnicianProfiles } from "../services/technicianService";
 import type { TecnicoPublicProfile } from "../services/technicianService";
+import { pluralize } from "../utils/text";
+
+function sentimentClass(sentimiento: string) {
+  if (sentimiento === "Positivo") return "bg-emerald-100 text-emerald-700";
+  if (sentimiento === "Crítico" || sentimiento === "Critico") {
+    return "bg-red-100 text-red-700";
+  }
+  if (sentimiento === "Mixto") return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-700";
+}
 
 function Tecnicos() {
   const [tecnicos, setTecnicos] = useState<TecnicoPublicProfile[]>([]);
@@ -21,7 +42,7 @@ function Tecnicos() {
       const data = await getPublicTechnicianProfiles();
       setTecnicos(data);
     } catch {
-      setError("No se pudieron cargar los perfiles de tecnicos.");
+      setError("No se pudieron cargar los perfiles de técnicos.");
     } finally {
       setLoading(false);
     }
@@ -50,10 +71,10 @@ function Tecnicos() {
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">
-              Tecnicos verificados
+              Técnicos verificados
             </h1>
             <p className="mt-2 text-gray-600">
-              Revisa perfiles tecnicos aprobados por FixYa.
+              Revisa perfiles técnicos aprobados por FixYa.
             </p>
           </div>
 
@@ -80,7 +101,7 @@ function Tecnicos() {
 
         {loading && (
           <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-            Cargando tecnicos...
+            Cargando técnicos...
           </div>
         )}
 
@@ -108,7 +129,7 @@ function Tecnicos() {
                         {tecnico.nombre_completo}
                       </h2>
                       <p className="text-sm text-gray-500">
-                        {tecnico.nivel_tecnico} · {tecnico.experiencia_anios} anos
+                        {tecnico.nivel_tecnico} · {tecnico.experiencia_anios} años
                       </p>
                     </div>
                   </div>
@@ -128,7 +149,10 @@ function Tecnicos() {
                   <span className="font-semibold text-gray-900">
                     {tecnico.promedio_calificacion}
                   </span>
-                  <span>({tecnico.total_resenas} reseñas)</span>
+                  <span>
+                    ({tecnico.total_resenas}{" "}
+                    {pluralize(tecnico.total_resenas, "reseña", "reseñas")})
+                  </span>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -153,7 +177,7 @@ function Tecnicos() {
 
             {filteredTecnicos.length === 0 && (
               <div className="rounded-2xl bg-white p-8 text-center text-gray-600 shadow-sm md:col-span-2 xl:col-span-3">
-                No hay tecnicos verificados para mostrar.
+                No hay técnicos verificados para mostrar.
               </div>
             )}
           </div>
@@ -202,7 +226,7 @@ function Tecnicos() {
               <div className="rounded-xl bg-gray-50 p-4">
                 <p className="text-sm text-gray-500">Experiencia</p>
                 <p className="font-semibold text-gray-900">
-                  {selectedTecnico.experiencia_anios} anos
+                  {selectedTecnico.experiencia_anios} años
                 </p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
@@ -233,10 +257,92 @@ function Tecnicos() {
                 </p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4 md:col-span-2">
-                <p className="text-sm text-gray-500">Reputacion</p>
+                <p className="text-sm text-gray-500">Reputación</p>
                 <p className="mt-1 font-semibold text-gray-900">
                   {selectedTecnico.promedio_calificacion} estrellas ·{" "}
-                  {selectedTecnico.total_resenas} reseñas
+                  {selectedTecnico.total_resenas}{" "}
+                  {pluralize(selectedTecnico.total_resenas, "reseña", "reseñas")}
+                </p>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 md:col-span-2">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-blue-700" />
+                    <p className="font-semibold text-gray-900">
+                      Resumen inteligente
+                    </p>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${sentimentClass(
+                      selectedTecnico.resumen_reputacion.sentimiento_general
+                    )}`}
+                  >
+                    {selectedTecnico.resumen_reputacion.sentimiento_general}
+                  </span>
+                </div>
+
+                <p className="text-sm leading-6 text-gray-700">
+                  {selectedTecnico.resumen_reputacion.resumen}
+                </p>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase text-blue-800">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Fortalezas
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTecnico.resumen_reputacion.fortalezas.length > 0 ? (
+                        selectedTecnico.resumen_reputacion.fortalezas.map(
+                          (fortaleza) => (
+                            <span
+                              key={fortaleza}
+                              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700"
+                            >
+                              {fortaleza}
+                            </span>
+                          )
+                        )
+                      ) : (
+                        <span className="text-sm text-gray-500">
+                          Sin patrones suficientes
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs font-bold uppercase text-slate-600">
+                      Aspectos a observar
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTecnico.resumen_reputacion.aspectos_a_mejorar
+                        .length > 0 ? (
+                        selectedTecnico.resumen_reputacion.aspectos_a_mejorar.map(
+                          (aspecto) => (
+                            <span
+                              key={aspecto}
+                              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                            >
+                              {aspecto}
+                            </span>
+                          )
+                        )
+                      ) : (
+                        <span className="text-sm text-gray-500">
+                          Sin alertas relevantes
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-xs font-semibold text-blue-900">
+                  {selectedTecnico.resumen_reputacion.comentarios_analizados}{" "}
+                  comentarios analizados · confianza{" "}
+                  {selectedTecnico.resumen_reputacion.nivel_confianza} ·{" "}
+                  {selectedTecnico.resumen_reputacion.modo_analisis}
                 </p>
               </div>
             </div>

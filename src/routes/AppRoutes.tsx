@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Home from "../pages/Home";
 import Tecnicos from "../pages/Tecnicos";
+import Servicios from "../pages/Servicios";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 
@@ -24,6 +25,7 @@ function AppRoutes() {
         {/* RUTAS PÚBLICAS */}
         <Route path="/" element={<Home />} />
         <Route path="/tecnicos" element={<Tecnicos />} />
+        <Route path="/servicios" element={<Servicios />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
