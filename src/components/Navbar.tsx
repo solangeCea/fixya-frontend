@@ -76,7 +76,7 @@ function Navbar() {
           to="/tecnicos"
           className="font-medium text-slate-700 hover:text-teal-700"
         >
-          Tecnicos
+          Técnicos
         </Link>
 
         {usuario && (

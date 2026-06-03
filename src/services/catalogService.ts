@@ -1,4 +1,5 @@
 import API_URL from "./api";
+import { fixDisplayText } from "../utils/text";
 
 export interface Comuna {
   id_comuna: number;
@@ -27,7 +28,12 @@ export async function getComunas(): Promise<Comuna[]> {
     throw new Error("Error al obtener comunas");
   }
 
-  return response.json();
+  const data: Comuna[] = await response.json();
+
+  return data.map((comuna) => ({
+    ...comuna,
+    nombre_comuna: fixDisplayText(comuna.nombre_comuna),
+  }));
 }
 
 export async function getRegiones(): Promise<Region[]> {
@@ -39,7 +45,12 @@ export async function getRegiones(): Promise<Region[]> {
     throw new Error("Error al obtener regiones");
   }
 
-  return response.json();
+  const data: Region[] = await response.json();
+
+  return data.map((region) => ({
+    ...region,
+    nombre_region: fixDisplayText(region.nombre_region),
+  }));
 }
 
 export async function getComunasByRegion(idRegion: number): Promise<Comuna[]> {
@@ -51,7 +62,12 @@ export async function getComunasByRegion(idRegion: number): Promise<Comuna[]> {
     throw new Error("Error al obtener comunas de la region");
   }
 
-  return response.json();
+  const data: Comuna[] = await response.json();
+
+  return data.map((comuna) => ({
+    ...comuna,
+    nombre_comuna: fixDisplayText(comuna.nombre_comuna),
+  }));
 }
 
 export async function getServicios(): Promise<Servicio[]> {
@@ -63,5 +79,11 @@ export async function getServicios(): Promise<Servicio[]> {
     throw new Error("Error al obtener servicios");
   }
 
-  return response.json();
+  const data: Servicio[] = await response.json();
+
+  return data.map((servicio) => ({
+    ...servicio,
+    nombre_servicio: fixDisplayText(servicio.nombre_servicio),
+    descripcion_servicio: fixDisplayText(servicio.descripcion_servicio),
+  }));
 }
