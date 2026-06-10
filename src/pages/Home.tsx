@@ -123,7 +123,7 @@ function Home() {
           </div>
         </section>
 
-        <section className="bg-slate-50 py-20 text-slate-950">
+        <section id="servicios" className="bg-slate-50 py-20 text-slate-950">
           <div className="mx-auto max-w-7xl px-6">
             <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
